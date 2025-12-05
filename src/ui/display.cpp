@@ -6,6 +6,7 @@
 #include "../core/config.h"
 #include "../piglet/mood.h"
 #include "../piglet/avatar.h"
+#include "menu.h"
 
 // Static member initialization
 M5Canvas Display::topBar(&M5.Display);
@@ -53,11 +54,16 @@ void Display::update() {
             break;
             
         case PorkchopMode::MENU:
-            // Menu handled by menu.cpp
+            // Draw menu
+            Menu::update();
+            Menu::draw(mainCanvas);
             break;
             
         case PorkchopMode::SETTINGS:
-            // Settings handled by settings screen
+            // Settings screen
+            mainCanvas.setTextDatum(middle_center);
+            mainCanvas.setTextSize(2);
+            mainCanvas.drawString("SETTINGS", DISPLAY_W / 2, MAIN_H / 2);
             break;
     }
     
@@ -130,22 +136,22 @@ void Display::drawTopBar() {
     topBar.drawString(status, DISPLAY_W - 2, 2);
     
     // Draw separator line
-    topBar.drawLine(0, TOP_BAR_H - 1, DISPLAY_W, TOP_BAR_H - 1, COLOR_FG);
+    topBar.drawLine(0, TOP_BAR_H - 1, DISPLAY_W, TOP_BAR_H - 1, COLOR_ACCENT);
 }
 
 void Display::drawBottomBar() {
     bottomBar.fillSprite(COLOR_BG);
-    bottomBar.setTextColor(COLOR_FG);
+    bottomBar.setTextColor(COLOR_ACCENT);  // Use accent color for stats
     
     // Draw separator line
-    bottomBar.drawLine(0, 0, DISPLAY_W, 0, COLOR_FG);
+    bottomBar.drawLine(0, 0, DISPLAY_W, 0, COLOR_ACCENT);
     
-    // Left: stats
-    uint16_t hsCount = porkchop.getHandshakeCount();
+    // Left: stats - Networks and Deauths
     uint16_t netCount = porkchop.getNetworkCount();
+    uint16_t deauthCount = porkchop.getDeauthCount();
     
     bottomBar.setTextDatum(top_left);
-    String stats = "HS:" + String(hsCount) + " NET:" + String(netCount);
+    String stats = "NET:" + String(netCount) + " DEAUTH:" + String(deauthCount);
     bottomBar.drawString(stats, 2, 3);
     
     // Right: uptime

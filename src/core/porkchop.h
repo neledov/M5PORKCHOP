@@ -23,6 +23,7 @@ enum class PorkchopEvent : uint8_t {
     GPS_LOST,
     HANDSHAKE_CAPTURED,
     NETWORK_FOUND,
+    DEAUTH_SENT,
     ROGUE_AP_DETECTED,
     OTA_AVAILABLE,
     LOW_BATTERY
@@ -50,6 +51,7 @@ public:
     uint32_t getUptime() const;
     uint16_t getHandshakeCount() const { return handshakeCount; }
     uint16_t getNetworkCount() const { return networkCount; }
+    uint16_t getDeauthCount() const { return deauthCount; }
     
 private:
     PorkchopMode currentMode;
@@ -58,6 +60,7 @@ private:
     uint32_t startTime;
     uint16_t handshakeCount;
     uint16_t networkCount;
+    uint16_t deauthCount;
     
     // Event queue
     struct EventItem {

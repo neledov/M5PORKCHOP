@@ -14,7 +14,8 @@ Porkchop::Porkchop()
     , previousMode(PorkchopMode::IDLE)
     , startTime(0)
     , handshakeCount(0)
-    , networkCount(0) {
+    , networkCount(0)
+    , deauthCount(0) {
 }
 
 void Porkchop::init() {
@@ -27,6 +28,10 @@ void Porkchop::init() {
     
     registerCallback(PorkchopEvent::NETWORK_FOUND, [this](PorkchopEvent, void*) {
         networkCount++;
+    });
+    
+    registerCallback(PorkchopEvent::DEAUTH_SENT, [this](PorkchopEvent, void*) {
+        deauthCount++;
     });
     
     // Setup main menu
