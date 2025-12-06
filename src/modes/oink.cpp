@@ -277,7 +277,7 @@ void OinkMode::processBeacon(const uint8_t* payload, uint16_t len, int8_t rssi) 
         }
         
         networks.push_back(net);
-        Mood::onNewNetwork(net.ssid);
+        Mood::onNewNetwork(net.ssid, net.rssi, net.channel);
         
         Serial.printf("[OINK] New network: %s (ch%d, %ddBm)\n", 
                      net.ssid[0] ? net.ssid : "<hidden>", net.channel, net.rssi);

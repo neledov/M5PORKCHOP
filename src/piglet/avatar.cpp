@@ -10,53 +10,53 @@ bool Avatar::earsUp = true;
 uint32_t Avatar::lastBlinkTime = 0;
 uint32_t Avatar::blinkInterval = 3000;
 
-// Avatar ASCII frames (3 lines each, no legs, centered on 240px width)
+// Avatar ASCII frames (3 lines each, no legs/hands)
 const char* AVATAR_NEUTRAL[] = {
-    "  ^  ^  ",
-    " (o oo) ",
-    "-(____)-"
+    " ^  ^ ",
+    "(o oo)",
+    "(____)"
 };
 
 const char* AVATAR_HAPPY[] = {
-    "  ^  ^  ",
-    " (^ o^) ",
-    "-(____)-"
+    " ^  ^ ",
+    "(^ o^)",
+    "(____)"
 };
 
 const char* AVATAR_EXCITED[] = {
-    "  !  !  ",
-    " (@o @) ",
-    "<(____)>"
+    " !  ! ",
+    "(@o @)",
+    "(____)"
 };
 
 const char* AVATAR_HUNTING[] = {
-    "  >  <  ",
-    " (>o <) ",
-    "\\(____)/"
+    " >  < ",
+    "(>o <)",
+    "(____)"
 };
 
 const char* AVATAR_SLEEPY[] = {
-    "  v  v  ",
-    " (-o -) ",
-    "-(____)-z"
+    " v  v ",
+    "(-o -)",
+    "(____)z"
 };
 
 const char* AVATAR_SAD[] = {
-    "  v  v  ",
-    " (T oT) ",
-    "-(____)- "
+    " v  v ",
+    "(T oT)",
+    "(____)"
 };
 
 const char* AVATAR_ANGRY[] = {
-    "  \\  /  ",
-    " (>o <) ",
-    "#(__)#"
+    " \\  / ",
+    "(>o <)",
+    "(____)"
 };
 
 const char* AVATAR_BLINK[] = {
-    "  ^  ^  ",
-    " (- o-) ",
-    "-(____)-"
+    " ^  ^ ",
+    "(- o-)",
+    "(____)"
 };
 
 void Avatar::init() {

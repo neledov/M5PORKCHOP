@@ -54,9 +54,9 @@ void Display::update() {
             
         case PorkchopMode::OINK_MODE:
         case PorkchopMode::WARHOG_MODE:
-            // Draw piglet avatar and info line
+            // Draw piglet avatar and mood bubble (info embedded in bubble)
             Avatar::draw(mainCanvas);
-            drawModeInfo(mainCanvas, mode);
+            Mood::draw(mainCanvas);
             break;
             
         case PorkchopMode::MENU:
@@ -96,11 +96,12 @@ void Display::pushAll() {
 void Display::drawTopBar() {
     topBar.fillSprite(COLOR_BG);
     topBar.setTextColor(COLOR_FG);
+    topBar.setTextSize(2);  // Bigger font
     topBar.setTextDatum(top_left);
     
-    // Left side: hostname and mode
+    // Left side: hostname
     String hostname = Config::personality().name;
-    topBar.drawString(hostname + ">", 2, 2);
+    topBar.drawString(hostname, 2, 1);
     
     // Mode indicator
     PorkchopMode mode = porkchop.getMode();
@@ -132,7 +133,7 @@ void Display::drawTopBar() {
     
     topBar.setTextColor(modeColor);
     topBar.setTextDatum(top_center);
-    topBar.drawString(modeStr, DISPLAY_W / 2, 2);
+    topBar.drawString(modeStr, DISPLAY_W / 2, 1);
     
     // Right side: status icons
     topBar.setTextDatum(top_right);
@@ -143,7 +144,7 @@ void Display::drawTopBar() {
     status += wifiStatus ? "W" : "-";
     status += mlStatus ? "M" : "-";
     
-    topBar.drawString(status, DISPLAY_W - 2, 2);
+    topBar.drawString(status, DISPLAY_W - 2, 1);
     
     // Draw separator line
     topBar.drawLine(0, TOP_BAR_H - 1, DISPLAY_W, TOP_BAR_H - 1, COLOR_ACCENT);
@@ -152,6 +153,7 @@ void Display::drawTopBar() {
 void Display::drawBottomBar() {
     bottomBar.fillSprite(COLOR_BG);
     bottomBar.setTextColor(COLOR_ACCENT);  // Use accent color for stats
+    bottomBar.setTextSize(2);  // Bigger font
     
     // Draw separator line
     bottomBar.drawLine(0, 0, DISPLAY_W, 0, COLOR_ACCENT);
@@ -163,7 +165,7 @@ void Display::drawBottomBar() {
     
     bottomBar.setTextDatum(top_left);
     String stats = "N:" + String(netCount) + " HS:" + String(hsCount) + " D:" + String(deauthCount);
-    bottomBar.drawString(stats, 2, 3);
+    bottomBar.drawString(stats, 2, 2);
     
     // Right: uptime
     bottomBar.setTextDatum(top_right);
@@ -171,7 +173,7 @@ void Display::drawBottomBar() {
     uint16_t mins = uptime / 60;
     uint16_t secs = uptime % 60;
     String uptimeStr = String(mins) + ":" + (secs < 10 ? "0" : "") + String(secs);
-    bottomBar.drawString(uptimeStr, DISPLAY_W - 2, 3);
+    bottomBar.drawString(uptimeStr, DISPLAY_W - 2, 2);
 }
 
 void Display::showInfoBox(const String& title, const String& line1, 

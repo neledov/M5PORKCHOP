@@ -125,28 +125,43 @@ void Mood::onHandshakeCaptured(const char* apName) {
     M5.Speaker.tone(2000, 100);  // Second beep (higher pitch)
 }
 
-void Mood::onNewNetwork(const char* apName) {
+void Mood::onNewNetwork(const char* apName, int8_t rssi, uint8_t channel) {
     happiness = min(happiness + 10, 100);
     lastActivityTime = millis();
     
-    // Show AP name in phrase if available
+    // Show AP name with info in funny phrases
     if (apName && strlen(apName) > 0) {
         String ap = String(apName);
-        if (ap.length() > 12) ap = ap.substring(0, 12) + "..";
+        if (ap.length() > 10) ap = ap.substring(0, 10) + "..";
+        
         const char* templates[] = {
-            "Found %s!",
-            "Sniffed %s",
-            "Hello %s!",
-            "New: %s"
+            "Sniffed %s on CH%d!",
+            "%s @ %ddB yummy!",
+            "Oink! %s CH%d",
+            "Tasty %s %ddB!",
+            "Nom nom %s!"
         };
-        int idx = random(0, 4);
-        char buf[48];
-        snprintf(buf, sizeof(buf), templates[idx], ap.c_str());
+        int idx = random(0, 5);
+        char buf[64];
+        if (idx == 1 || idx == 3) {
+            snprintf(buf, sizeof(buf), templates[idx], ap.c_str(), rssi);
+        } else if (idx == 0 || idx == 2) {
+            snprintf(buf, sizeof(buf), templates[idx], ap.c_str(), channel);
+        } else {
+            snprintf(buf, sizeof(buf), templates[idx], ap.c_str());
+        }
         currentPhrase = buf;
     } else {
-        int idx = random(0, sizeof(PHRASES_HAPPY) / sizeof(PHRASES_HAPPY[0]));
-        currentPhrase = PHRASES_HAPPY[idx];
+        // Hidden network
+        char buf[48];
+        snprintf(buf, sizeof(buf), "Hidden net CH%d %ddB", channel, rssi);
+        currentPhrase = buf;
     }
+    lastPhraseChange = millis();
+}
+
+void Mood::setStatusMessage(const String& msg) {
+    currentPhrase = msg;
     lastPhraseChange = millis();
 }
 
@@ -248,45 +263,53 @@ void Mood::updateAvatarState() {
 }
 
 void Mood::draw(M5Canvas& canvas) {
-    // Draw comic speech bubble on right side
-    int bubbleX = 100;  // Start of bubble (after piglet)
-    int bubbleY = 5;
-    int bubbleW = DISPLAY_W - bubbleX - 5;
-    int bubbleH = 50;
+    // Calculate bubble size based on message length
+    String phrase = currentPhrase;
+    int maxCharsPerLine = 18;
+    int numLines = 1;
+    if (phrase.length() > maxCharsPerLine) numLines = 2;
+    if (phrase.length() > maxCharsPerLine * 2) numLines = 3;
+    
+    int bubbleX = 75;  // Start of bubble (after piglet)
+    int bubbleY = 3;
+    int bubbleW = DISPLAY_W - bubbleX - 4;
+    int bubbleH = 14 + (numLines * 14);  // Dynamic height based on lines
+    
+    // Cap bubble height to fit screen
+    if (bubbleH > MAIN_H - 10) bubbleH = MAIN_H - 10;
     
     // Draw bubble outline
-    canvas.drawRoundRect(bubbleX, bubbleY, bubbleW, bubbleH, 8, COLOR_FG);
+    canvas.drawRoundRect(bubbleX, bubbleY, bubbleW, bubbleH, 6, COLOR_FG);
     
-    // Draw speech bubble pointer (triangle pointing left to piglet)
-    int triX = bubbleX - 1;
-    int triY = bubbleY + bubbleH / 2;
-    canvas.fillTriangle(triX, triY, triX - 10, triY + 5, triX, triY + 10, COLOR_FG);
-    // Fill inside of triangle to match background
-    canvas.drawLine(triX, triY + 1, triX, triY + 9, COLOR_BG);
-    
-    // Draw phrase inside bubble (wrap if needed)
-    canvas.setTextDatum(top_center);
+    // Draw < arrow pointing to piglet
     canvas.setTextSize(1);
+    canvas.setTextColor(COLOR_FG);
+    canvas.drawString("<", bubbleX - 6, bubbleY + bubbleH / 2 - 4);
+    
+    // Draw phrase inside bubble with word wrapping
+    canvas.setTextDatum(top_left);
     canvas.setTextColor(COLOR_ACCENT);
     
-    // Word wrap for longer phrases
-    String phrase = currentPhrase;
-    int maxChars = 16;  // Max chars per line
-    int textX = bubbleX + bubbleW / 2;
+    int textX = bubbleX + 6;
+    int textY = bubbleY + 6;
+    int lineHeight = 12;
     
-    if (phrase.length() <= maxChars) {
-        canvas.drawString(phrase, textX, bubbleY + 20);
-    } else {
-        // Split into two lines
-        int splitPos = phrase.lastIndexOf(' ', maxChars);
-        if (splitPos < 0) splitPos = maxChars;
-        
-        String line1 = phrase.substring(0, splitPos);
-        String line2 = phrase.substring(splitPos + 1);
-        if (line2.length() > maxChars) line2 = line2.substring(0, maxChars - 2) + "..";
-        
-        canvas.drawString(line1, textX, bubbleY + 12);
-        canvas.drawString(line2, textX, bubbleY + 26);
+    // Word wrap logic
+    String remaining = phrase;
+    int lineNum = 0;
+    while (remaining.length() > 0 && lineNum < 4) {
+        String line;
+        if (remaining.length() <= maxCharsPerLine) {
+            line = remaining;
+            remaining = "";
+        } else {
+            int splitPos = remaining.lastIndexOf(' ', maxCharsPerLine);
+            if (splitPos <= 0) splitPos = maxCharsPerLine;
+            line = remaining.substring(0, splitPos);
+            remaining = remaining.substring(splitPos + 1);
+        }
+        canvas.drawString(line, textX, textY + lineNum * lineHeight);
+        lineNum++;
     }
 }
 

@@ -12,7 +12,8 @@ public:
     
     // Mood triggers
     static void onHandshakeCaptured(const char* apName = nullptr);
-    static void onNewNetwork(const char* apName = nullptr);
+    static void onNewNetwork(const char* apName = nullptr, int8_t rssi = 0, uint8_t channel = 0);
+    static void setStatusMessage(const String& msg);  // For mode-specific info
     static void onMLPrediction(float confidence);
     static void onNoActivity(uint32_t seconds);
     static void onWiFiLost();
