@@ -8,6 +8,18 @@ M5Porkchop is a WiFi security research tool for the M5Cardputer (ESP32-S3 based)
 - Interactive ASCII piglet avatar with mood-based phrases
 - Settings menu with persistent configuration
 
+## Documentation Style
+
+README and user-facing docs use oldschool Phrack hacker magazine style:
+- Section numbering with `--[ X - Title` format
+- Subsections with `----[ X.Y - Subtitle` format
+- ASCII art boxes and tables with `+---+` borders
+- Monospaced code/example blocks indented with 4 spaces
+- Edgy, irreverent tone - we made a hacking pig, not enterprise software
+- No corporate speak, no hand-holding, assume the reader knows their stuff
+- Snarky comments in parentheses are encouraged
+- End with `==[EOF]==`
+
 ## Code Style Guidelines
 
 1. **No emojis** - Do not use emojis in code, comments, documentation, or UI strings

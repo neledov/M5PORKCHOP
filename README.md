@@ -211,9 +211,10 @@
     your piglet is going ham on someone's network.
 
 
---[ 6.1 - Screen Layout
+----[ 6.1 - Screen Layout
 
-    The 240x135 display is split into three regions:
+    Your piglet's face lives on a 240x135 pixel canvas. Not much real
+    estate, but enough to cause trouble.
 
     +----------------------------------------+
     | [OINK]                     SD GPS WiFi | <- Top Bar (14px)
@@ -228,16 +229,19 @@
     | N:42  HS:3  D:127         CH:6  -45dBm | <- Bottom Bar (14px)
     +----------------------------------------+
 
-    The piglet has moods. Here's the emotional range:
+    The piglet has moods. Watch the face change as it hunts:
 
         NEUTRAL     HAPPY       HUNTING     SLEEPY      SAD
          ?  ?        ^  ^        /  \        v  v        .  .
         (o 00)      (^ 00)      (> 00)      (- 00)      (T 00)
         (    )      (    )      (    )      (    )      (    )
 
-    Top Bar:    Mode indicator [OINK/WARHOG], status icons
-    Main:       Derpy piglet + speech bubble with phrases
-    Bottom:     Stats (Networks/Handshakes/Deauths, Channel, RSSI)
+    (Yes, we spent actual development time on pig facial expressions.
+    No regrets.)
+
+    Top Bar:    Current mode, hardware status (SD/GPS/WiFi icons)
+    Main:       Your derpy companion + whatever it's thinking
+    Bottom:     The numbers that matter (Networks/Handshakes/Deauths)
 
 
 --[ 7 - Configuration
