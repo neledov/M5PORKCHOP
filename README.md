@@ -124,6 +124,41 @@
     The scaffold is ready.
 
 
+----[ 3.5 - Enhanced ML Mode
+
+    Two collection modes for different threat models:
+
+        BASIC MODE (default)
+        ----------------------
+        Uses ESP32 WiFi scan API. Fast. Reliable. Limited features.
+        Good for casual wardriving when you just want the basics.
+
+        ENHANCED MODE
+        ----------------------
+        Enables promiscuous beacon capture. Parses raw 802.11 frames.
+        Extracts the juicy bits:
+
+            * IE 0  (SSID)              - Catches all-null hidden SSIDs
+            * IE 3  (DS Parameter Set)  - Real channel info
+            * IE 45 (HT Capabilities)   - 802.11n fingerprinting
+            * IE 48 (RSN)               - WPA2/WPA3, PMF, cipher suites
+            * IE 50 (Extended Rates)    - Rate analysis
+            * IE 221 (Vendor Specific)  - WPS, WPA1, vendor ID
+
+        Higher CPU. More memory. More features. Worth it.
+
+    Toggle in Settings: [ML Mode: Basic/Enhanced]
+
+    Each network gets an anomalyScore (0.0-1.0) based on:
+
+        * RSSI > -30 dBm         (suspiciously strong)
+        * Open or WEP encryption (lol what year is it)
+        * Hidden SSID            (something to hide?)
+        * Non-standard beacon    (not 100ms = sketchy)
+        * No HT capabilities     (router from 2007?)
+        * WPS on open network    (honeypot fingerprint)
+
+
 --[ 4 - Hardware
 
     Required:
@@ -190,6 +225,7 @@
         | Deauth     | Enable deauth attacks         | ON      |
         | GPS        | Enable GPS module             | ON      |
         | GPS PwrSave| Power saving for GPS          | ON      |
+        | ML Mode    | Basic/Enhanced beacon capture | Basic   |
         +------------+-------------------------------+---------+
 
 

@@ -186,12 +186,54 @@ WiFi Frame → FeatureExtractor → WiFiFeatures (32 floats) → MLInference →
                                               Heuristic Classifier
 ```
 
+### ML Collection Modes
+Configured via `config.ml.collectionMode` (MLCollectionMode enum in config.h):
+
+- **BASIC (0)**: Uses ESP32 scan API only. Features from `wifi_ap_record_t`. Fast, reliable, limited feature set.
+- **ENHANCED (1)**: Enables promiscuous mode beacon capture during WARHOG. Parses raw 802.11 frames for deep feature extraction (vendor IEs, HT capabilities, beacon timing jitter). More features but higher CPU/memory usage.
+
+### Feature Extraction
+Two extraction paths depending on mode:
+
+1. **extractFromScan()**: Called with `wifi_ap_record_t` from scan API. Gets RSSI, channel, authmode, basic IE presence.
+2. **extractFromBeacon()**: Called with raw beacon frame buffer. Parses IEs directly:
+   - IE 0 (SSID) - Hidden network detection (zero-length or all-null bytes)
+   - IE 3 (DS Parameter Set) - Channel extraction
+   - IE 45 (HT Capabilities) - 802.11n features
+   - IE 48 (RSN) - WPA2/WPA3, PMF, cipher suite detection
+   - IE 50 (Extended Supported Rates) - Additional rate analysis
+   - IE 221 (Vendor Specific) - WPS, WPA1, vendor fingerprinting
+
+### Race Condition Guard
+In Enhanced mode, beacon callback runs in WiFi task context while main loop processes data. Use the `beaconMapBusy` volatile flag pattern:
+
+```cpp
+volatile bool beaconMapBusy = false;
+
+// In promiscuous callback:
+if (beaconMapBusy) return;  // Skip if main thread is processing
+
+// In main loop before iterating beaconMap:
+beaconMapBusy = true;
+// ... process beaconMap ...
+beaconMapBusy = false;
+```
+
 ### ML Labels
 - `NORMAL` (0) - Legitimate network
 - `ROGUE_AP` (1) - Suspicious access point (strong signal, odd beacon timing)
 - `EVIL_TWIN` (2) - Impersonating known network
 - `DEAUTH_TARGET` (3) - Vulnerable to deauth attacks
 - `VULNERABLE` (4) - Open/WEP/WPA1 network
+
+### Anomaly Scoring
+The `anomalyScore` field (0.0-1.0) is calculated from multiple signals:
+- RSSI > -30 dBm (suspiciously strong)
+- Open or WEP encryption
+- Hidden SSID
+- Non-standard beacon interval (not ~100ms)
+- No HT capabilities (unusual for modern APs)
+- WPS enabled on open network (honeypot pattern)
 
 ### Heuristic Detection Rules
 The classifier scores networks on:
