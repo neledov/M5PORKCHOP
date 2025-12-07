@@ -651,13 +651,19 @@ void OinkMode::processBeacon(const uint8_t* payload, uint16_t len, int8_t rssi) 
         // Limit network count to prevent OOM
         if (networks.size() >= MAX_NETWORKS) {
             // Remove oldest network that isn't the target
+            bool removed = false;
             for (size_t i = 0; i < networks.size(); i++) {
                 if ((int)i != targetIndex && !networks[i].isTarget) {
                     networks.erase(networks.begin() + i);
                     if (targetIndex > (int)i) targetIndex--;
                     if (selectionIndex > (int)i) selectionIndex--;
+                    removed = true;
                     break;
                 }
+            }
+            // If we couldn't remove anything (all are targets - shouldn't happen), skip adding
+            if (!removed) {
+                return;  // Don't add new network, we're at capacity
             }
         }
         
