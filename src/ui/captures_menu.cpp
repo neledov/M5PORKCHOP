@@ -217,12 +217,12 @@ void CapturesMenu::draw(M5Canvas& canvas) {
         canvas.setTextColor(COLOR_FG);
         canvas.print("v");
     }
-    
-    // Footer with BSSID of selected
+    // BSSID shown in bottom bar via getSelectedBSSID()
+}
+
+String CapturesMenu::getSelectedBSSID() {
     if (selectedIndex < captures.size()) {
-        canvas.drawFastHLine(0, canvas.height() - 14, canvas.width(), COLOR_FG);
-        canvas.setTextColor(COLOR_FG);
-        canvas.setCursor(4, canvas.height() - 11);
-        canvas.print(captures[selectedIndex].bssid);
+        return captures[selectedIndex].bssid;
     }
+    return "";
 }

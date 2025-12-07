@@ -44,6 +44,9 @@ volatile bool WarhogMode::beaconMapBusy = false;
 TaskHandle_t WarhogMode::scanTaskHandle = NULL;
 volatile int WarhogMode::scanResult = -2;  // -2 = not started, -1 = running, >=0 = complete
 
+// Periodic ML export
+uint32_t WarhogMode::lastMLExport = 0;
+
 void WarhogMode::init() {
     entries.clear();
     newCount = 0;
@@ -85,6 +88,9 @@ void WarhogMode::start() {
     scanInterval = Config::gps().updateInterval * 1000;
     Serial.printf("[WARHOG] Scan interval: %lu ms\n", scanInterval);
     
+    // Reset ML export timer
+    lastMLExport = millis();
+    
     // Check if Enhanced ML mode is enabled (might have changed in settings)
     enhancedMode = (Config::ml().collectionMode == MLCollectionMode::ENHANCED);
     
@@ -124,10 +130,20 @@ void WarhogMode::stop() {
     
     Serial.println("[WARHOG] Stopping...");
     
-    // Stop Enhanced mode capture
+    // Stop Enhanced mode capture first
     if (enhancedMode) {
         stopEnhancedCapture();
     }
+    
+    // Cancel any running background scan
+    if (scanInProgress && scanTaskHandle != NULL) {
+        Serial.println("[WARHOG] Cancelling background scan...");
+        vTaskDelete(scanTaskHandle);
+        scanTaskHandle = NULL;
+        WiFi.scanDelete();
+    }
+    scanInProgress = false;
+    scanResult = -2;
     
     running = false;
     
@@ -236,6 +252,14 @@ void WarhogMode::update() {
     
     // Start new scan if interval elapsed and not already scanning
     if (now - lastScanTime >= scanInterval) {
+        // Check if ML export is due - do it before starting scan
+        if (enhancedMode && !entries.empty() && (now - lastMLExport >= ML_EXPORT_INTERVAL)) {
+            if (Config::isSDAvailable()) {
+                Serial.println("[WARHOG] Periodic ML export (before scan)...");
+                exportMLTraining("/ml_training.csv");
+                lastMLExport = now;
+            }
+        }
         performScan();
         lastScanTime = now;
     }

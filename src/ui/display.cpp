@@ -206,6 +206,9 @@ void Display::drawBottomBar() {
             // No fix - show satellite count searching
             stats = "U:" + String(unique) + " S:" + String(saved) + " GPS:" + String(gps.satellites) + "sat";
         }
+    } else if (mode == PorkchopMode::CAPTURES) {
+        // CAPTURES: show selected capture's BSSID
+        stats = CapturesMenu::getSelectedBSSID();
     } else {
         // Default: Networks, Handshakes, Deauths
         uint16_t netCount = porkchop.getNetworkCount();

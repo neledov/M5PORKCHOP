@@ -21,6 +21,7 @@ public:
     static void update();
     static void draw(M5Canvas& canvas);
     static bool isActive() { return active; }
+    static String getSelectedBSSID();
     
 private:
     static std::vector<CaptureInfo> captures;

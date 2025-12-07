@@ -94,6 +94,10 @@ private:
     static TaskHandle_t scanTaskHandle;
     static volatile int scanResult;
     
+    // Periodic ML export
+    static uint32_t lastMLExport;
+    static const uint32_t ML_EXPORT_INTERVAL = 60000;  // 60 seconds
+    
     static void performScan();
     static void scanTask(void* pvParameters);
     static void processScanResults();
