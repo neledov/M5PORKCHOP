@@ -449,13 +449,13 @@ void Display::drawModeInfo(M5Canvas& canvas, PorkchopMode mode) {
             canvas.drawString(info, 2, 26);
         } else if (!networks.empty()) {
             canvas.setTextColor(COLOR_FG);
-            canvas.drawString("sniffing.", 2, 2);
+            canvas.drawString("sniffin", 2, 2);
             canvas.setTextColor(COLOR_ACCENT);
             char buf[32];
-            snprintf(buf, sizeof(buf), "Found %d networks", (int)networks.size());
+            snprintf(buf, sizeof(buf), "found %d truffles", (int)networks.size());
             canvas.drawString(buf, 2, 14);
         } else {
-            canvas.drawString("hunting aps.", 2, MAIN_H / 2 - 5);
+            canvas.drawString("hunting truffles", 2, MAIN_H / 2 - 5);
         }
         
         // Show stats at bottom
