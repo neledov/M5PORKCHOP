@@ -3,7 +3,6 @@
 
 Import("env")
 import os
-import json
 from datetime import datetime
 
 def pre_build_callback(source, target, env):

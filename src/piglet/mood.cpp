@@ -425,7 +425,8 @@ void Mood::onSniffing(uint16_t networkCount, uint8_t channel) {
 void Mood::onDeauthing(const char* apName, uint32_t deauthCount) {
     lastActivityTime = millis();
     
-    String ap = apName ? String(apName) : "target";
+    // Handle null or empty SSID (hidden networks)
+    String ap = (apName && strlen(apName) > 0) ? String(apName) : "ghost AP";
     if (ap.length() > 10) ap = ap.substring(0, 10) + "..";
     
     int idx = random(0, sizeof(PHRASES_DEAUTH) / sizeof(PHRASES_DEAUTH[0]));
