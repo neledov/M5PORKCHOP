@@ -252,10 +252,10 @@ void Display::drawBottomBar() {
     } else if (mode == PorkchopMode::PIGGYBLUES_MODE) {
         // PIGGYBLUES: TX:total A:apple G:android S:samsung W:windows
         uint32_t total = PiggyBluesMode::getTotalPackets();
-        uint16_t apple = PiggyBluesMode::getAppleCount();
-        uint16_t android = PiggyBluesMode::getAndroidCount();
-        uint16_t samsung = PiggyBluesMode::getSamsungCount();
-        uint16_t windows = PiggyBluesMode::getWindowsCount();
+        uint32_t apple = PiggyBluesMode::getAppleCount();
+        uint32_t android = PiggyBluesMode::getAndroidCount();
+        uint32_t samsung = PiggyBluesMode::getSamsungCount();
+        uint32_t windows = PiggyBluesMode::getWindowsCount();
         char buf[48];
         snprintf(buf, sizeof(buf), "TX:%lu A:%d G:%d S:%d W:%d", total, apple, android, samsung, windows);
         stats = String(buf);

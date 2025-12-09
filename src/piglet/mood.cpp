@@ -97,25 +97,25 @@ const char* PHRASES_WARHOG_FOUND[] = {
 };
 
 // Piggy Blues BLE spam phrases - with format specifiers
-// %s=vendor %d=rssi %d=targets %d=total
+// All phrases use %s=vendor and %d=rssi
 const char* PHRASES_PIGGYBLUES_TARGETED[] = {
     "%s pwned @ %ddB",
     "0wning %s [%ddB]",
-    "%s gets the oink",
+    "%s oinked @ %ddB",
     "rekt: %s %ddB",
-    "%s -> notification hell",
-    "pop pop %s",
-    "%s catching strays",
-    "bluejackin %s"
+    "%s spammed %ddB",
+    "pop pop %s %ddB",
+    "%s rekt @ %ddB",
+    "bluejackin %s %ddB"
 };
 
-// Status phrases showing scan results
+// Status phrases showing scan results - all use %d/%d format
 const char* PHRASES_PIGGYBLUES_STATUS[] = {
     "%d targets [%d found]",
     "hunting %d/%d marks",
     "%d locked, %d scanned",
     "owning %d of %d",
-    "%d active victims"
+    "%d active [%d seen]"
 };
 
 // Idle/scanning phrases

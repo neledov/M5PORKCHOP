@@ -30,10 +30,10 @@ public:
     
     // Statistics
     static uint32_t getTotalPackets() { return totalPackets; }
-    static uint16_t getAppleCount() { return appleCount; }
-    static uint16_t getAndroidCount() { return androidCount; }
-    static uint16_t getSamsungCount() { return samsungCount; }
-    static uint16_t getWindowsCount() { return windowsCount; }
+    static uint32_t getAppleCount() { return appleCount; }
+    static uint32_t getAndroidCount() { return androidCount; }
+    static uint32_t getSamsungCount() { return samsungCount; }
+    static uint32_t getWindowsCount() { return windowsCount; }
     
 private:
     static bool running;
@@ -50,10 +50,10 @@ private:
     
     // Statistics
     static uint32_t totalPackets;
-    static uint16_t appleCount;
-    static uint16_t androidCount;
-    static uint16_t samsungCount;
-    static uint16_t windowsCount;
+    static uint32_t appleCount;
+    static uint32_t androidCount;
+    static uint32_t samsungCount;
+    static uint32_t windowsCount;
     
     // Internal methods
     static bool showWarningDialog();

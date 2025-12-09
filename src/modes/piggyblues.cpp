@@ -23,10 +23,10 @@ std::vector<BLETarget> PiggyBluesMode::targets;
 uint8_t PiggyBluesMode::activeTargets[4] = {0};
 uint8_t PiggyBluesMode::activeCount = 0;
 uint32_t PiggyBluesMode::totalPackets = 0;
-uint16_t PiggyBluesMode::appleCount = 0;
-uint16_t PiggyBluesMode::androidCount = 0;
-uint16_t PiggyBluesMode::samsungCount = 0;
-uint16_t PiggyBluesMode::windowsCount = 0;
+uint32_t PiggyBluesMode::appleCount = 0;
+uint32_t PiggyBluesMode::androidCount = 0;
+uint32_t PiggyBluesMode::samsungCount = 0;
+uint32_t PiggyBluesMode::windowsCount = 0;
 
 // AppleJuice payloads - fake AirPods/AppleTV/etc popups
 // Format: length, type (0xFF = manufacturer), Apple company ID (0x004C), device type, ...
@@ -305,6 +305,10 @@ void PiggyBluesMode::start() {
     NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);  // Use random address
     
     pAdvertising = NimBLEDevice::getAdvertising();
+    if (!pAdvertising) {
+        Serial.println("[PIGGYBLUES] Failed to get advertising handle");
+        return;
+    }
     pAdvertising->setMinInterval(32);  // 20ms (32 * 0.625ms)
     pAdvertising->setMaxInterval(64);  // 40ms (64 * 0.625ms)
     pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_NON);  // Non-connectable
