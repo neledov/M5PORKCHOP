@@ -499,6 +499,7 @@
     |   |   +-- menu.cpp/h        # Main menu with callbacks
     |   |   +-- settings_menu.cpp/h   # Interactive settings
     |   |   +-- captures_menu.cpp/h   # Browse captured handshakes
+    |   |   +-- achievements_menu.cpp/h # Proof of pwn viewer
     |   |   +-- log_viewer.cpp/h  # View SD card logs
     |   |
     |   +-- piglet/
