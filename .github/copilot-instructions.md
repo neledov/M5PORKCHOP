@@ -52,7 +52,7 @@ README and user-facing docs use oldschool Phrack hacker magazine style:
 - `src/ui/display.cpp/h` - Triple-buffered canvas system (topBar, mainCanvas, bottomBar), 240x135 display, showToast(), showLevelUp()
 - `src/ui/menu.cpp/h` - Main menu with callback system
 - `src/ui/settings_menu.cpp/h` - Interactive settings with TOGGLE, VALUE, ACTION, TEXT item types
-- `src/ui/captures_menu.cpp/h` - Captured handshakes viewer
+- `src/ui/captures_menu.cpp/h` - LOOT menu: captured handshakes/PMKID viewer
 - `src/ui/achievements_menu.cpp/h` - Achievements viewer with unlock descriptions
 - `src/ui/log_viewer.cpp/h` - SD card log file viewer with scrolling
 

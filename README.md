@@ -532,7 +532,7 @@
     |   |   +-- display.cpp/h     # Triple-canvas display system
     |   |   +-- menu.cpp/h        # Main menu with callbacks
     |   |   +-- settings_menu.cpp/h   # Interactive settings
-    |   |   +-- captures_menu.cpp/h   # Browse captured handshakes
+    |   |   +-- captures_menu.cpp/h   # LOOT menu - browse captured handshakes
     |   |   +-- achievements_menu.cpp/h # Proof of pwn viewer
     |   |   +-- log_viewer.cpp/h  # View SD card logs
     |   |
