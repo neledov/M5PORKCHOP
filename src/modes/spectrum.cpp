@@ -169,6 +169,26 @@ void SpectrumMode::draw(M5Canvas& canvas) {
     drawSpectrum(canvas);
     drawChannelMarkers(canvas);
     
+    // Draw status indicators if network is selected
+    if (selectedIndex >= 0 && selectedIndex < (int)networks.size()) {
+        const auto& net = networks[selectedIndex];
+        canvas.setTextSize(1);
+        canvas.setTextColor(COLOR_FG);
+        canvas.setTextDatum(top_left);
+        
+        // Build status string: [VULN!] and/or [DEAUTH]
+        String status = "";
+        if (isVulnerable(net.authmode)) {
+            status += "[VULN!]";
+        }
+        if (!net.hasPMF) {
+            status += "[DEAUTH]";
+        }
+        if (status.length() > 0) {
+            canvas.drawString(status, SPECTRUM_LEFT + 2, SPECTRUM_TOP);
+        }
+    }
+    
     // Draw XP bar at bottom (y=91+)
     XP::drawBar(canvas);
 }
@@ -347,7 +367,7 @@ void SpectrumMode::pruneStale() {
     busy = false;
 }
 
-void SpectrumMode::onBeacon(const uint8_t* bssid, uint8_t channel, int8_t rssi, const char* ssid) {
+void SpectrumMode::onBeacon(const uint8_t* bssid, uint8_t channel, int8_t rssi, const char* ssid, wifi_auth_mode_t authmode, bool hasPMF) {
     // Skip if main thread is accessing networks
     if (busy) return;
     // Look for existing network
@@ -356,6 +376,8 @@ void SpectrumMode::onBeacon(const uint8_t* bssid, uint8_t channel, int8_t rssi, 
             // Update existing
             net.rssi = rssi;
             net.lastSeen = millis();
+            net.authmode = authmode;  // Update auth mode
+            net.hasPMF = hasPMF;      // Update PMF status
             if (ssid && ssid[0] && net.ssid[0] == 0) {
                 strncpy(net.ssid, ssid, 32);
                 net.ssid[32] = 0;
@@ -376,6 +398,8 @@ void SpectrumMode::onBeacon(const uint8_t* bssid, uint8_t channel, int8_t rssi, 
     net.channel = channel;
     net.rssi = rssi;
     net.lastSeen = millis();
+    net.authmode = authmode;
+    net.hasPMF = hasPMF;
     
     networks.push_back(net);
     
@@ -388,10 +412,11 @@ void SpectrumMode::onBeacon(const uint8_t* bssid, uint8_t channel, int8_t rssi, 
 String SpectrumMode::getSelectedInfo() {
     if (selectedIndex >= 0 && selectedIndex < (int)networks.size()) {
         const auto& net = networks[selectedIndex];
-        char buf[48];
-        snprintf(buf, sizeof(buf), "%s %ddB ch%d", 
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%s %ddB ch%d %s", 
                  net.ssid[0] ? net.ssid : "[hidden]", 
-                 net.rssi, net.channel);
+                 net.rssi, net.channel,
+                 authModeToShortString(net.authmode));
         return String(buf);
     }
     if (networks.empty()) {
@@ -439,6 +464,112 @@ void SpectrumMode::promiscuousCallback(void* buf, wifi_promiscuous_pkt_type_t ty
         offset += 2 + tagLen;
     }
     
+    // Parse auth mode from RSN (0x30) and WPA (0xDD) IEs
+    wifi_auth_mode_t authmode = WIFI_AUTH_OPEN;  // Default to open
+    bool hasRSN = false;
+    offset = 36;
+    while (offset + 2 < len) {
+        uint8_t tagNum = payload[offset];
+        uint8_t tagLen = payload[offset + 1];
+        
+        if (offset + 2 + tagLen > len) break;
+        
+        if (tagNum == 0x30 && tagLen >= 2) {  // RSN IE = WPA2/WPA3
+            hasRSN = true;
+            authmode = WIFI_AUTH_WPA2_PSK;
+        } else if (tagNum == 0xDD && tagLen >= 8) {  // Vendor specific
+            // Check for WPA1 OUI: 00:50:F2:01
+            if (payload[offset + 2] == 0x00 && payload[offset + 3] == 0x50 &&
+                payload[offset + 4] == 0xF2 && payload[offset + 5] == 0x01) {
+                // WPA1 - only set if not already WPA2
+                if (!hasRSN) {
+                    authmode = WIFI_AUTH_WPA_PSK;
+                } else {
+                    authmode = WIFI_AUTH_WPA_WPA2_PSK;
+                }
+            }
+        }
+        
+        offset += 2 + tagLen;
+    }
+    
+    // Detect PMF (Protected Management Frames)
+    bool hasPMF = detectPMF(payload, len);
+    
     // Update spectrum data
-    onBeacon(bssid, channel, rssi, ssid);
+    onBeacon(bssid, channel, rssi, ssid, authmode, hasPMF);
+}
+
+// Check if auth mode is considered vulnerable (OPEN, WEP, WPA1)
+bool SpectrumMode::isVulnerable(wifi_auth_mode_t mode) {
+    switch (mode) {
+        case WIFI_AUTH_OPEN:
+        case WIFI_AUTH_WEP:
+        case WIFI_AUTH_WPA_PSK:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// Convert auth mode to short display string
+const char* SpectrumMode::authModeToShortString(wifi_auth_mode_t mode) {
+    switch (mode) {
+        case WIFI_AUTH_OPEN: return "OPEN";
+        case WIFI_AUTH_WEP: return "WEP";
+        case WIFI_AUTH_WPA_PSK: return "WPA";
+        case WIFI_AUTH_WPA2_PSK: return "WPA2";
+        case WIFI_AUTH_WPA_WPA2_PSK: return "WPA/2";
+        case WIFI_AUTH_WPA3_PSK: return "WPA3";
+        case WIFI_AUTH_WPA2_WPA3_PSK: return "WPA2/3";
+        case WIFI_AUTH_WAPI_PSK: return "WAPI";
+        default: return "?";
+    }
+}
+
+// Detect PMF (Protected Management Frames) from RSN IE
+// Networks with PMF required (MFPR=1) are immune to deauth attacks
+bool SpectrumMode::detectPMF(const uint8_t* payload, uint16_t len) {
+    uint16_t offset = 36;  // After fixed beacon fields
+    
+    while (offset + 2 < len) {
+        uint8_t tag = payload[offset];
+        uint8_t tagLen = payload[offset + 1];
+        
+        if (offset + 2 + tagLen > len) break;
+        
+        if (tag == 0x30 && tagLen >= 8) {  // RSN IE
+            // RSN IE structure: version(2) + group cipher(4) + pairwise count(2) + ...
+            uint16_t rsnOffset = offset + 2;
+            uint16_t rsnEnd = rsnOffset + tagLen;
+            
+            // Skip version (2), group cipher (4)
+            rsnOffset += 6;
+            if (rsnOffset + 2 > rsnEnd) break;
+            
+            // Pairwise cipher count and suites
+            uint16_t pairwiseCount = payload[rsnOffset] | (payload[rsnOffset + 1] << 8);
+            rsnOffset += 2 + (pairwiseCount * 4);
+            if (rsnOffset + 2 > rsnEnd) break;
+            
+            // AKM count and suites
+            uint16_t akmCount = payload[rsnOffset] | (payload[rsnOffset + 1] << 8);
+            rsnOffset += 2 + (akmCount * 4);
+            if (rsnOffset + 2 > rsnEnd) break;
+            
+            // RSN Capabilities (2 bytes)
+            uint16_t rsnCaps = payload[rsnOffset] | (payload[rsnOffset + 1] << 8);
+            
+            // Bit 7: MFPR (Management Frame Protection Required)
+            bool mfpr = (rsnCaps >> 7) & 0x01;
+            
+            if (mfpr) {
+                return true;  // PMF required - deauth won't work
+            }
+        }
+        
+        offset += 2 + tagLen;
+    }
+    
+    return false;
 }
