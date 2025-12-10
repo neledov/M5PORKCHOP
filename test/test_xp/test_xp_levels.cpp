@@ -2,7 +2,7 @@
 // Tests the core XP/leveling system math
 
 #include <unity.h>
-#include "mocks/testable_functions.h"
+#include "../mocks/testable_functions.h"
 
 void setUp(void) {
     // No setup needed for pure function tests

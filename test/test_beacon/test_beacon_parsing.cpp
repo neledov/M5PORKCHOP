@@ -3,7 +3,7 @@
 
 #include <unity.h>
 #include <cstring>
-#include "mocks/testable_functions.h"
+#include "../mocks/testable_functions.h"
 
 void setUp(void) {
     // No setup needed
