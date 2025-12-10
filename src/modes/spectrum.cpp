@@ -204,8 +204,10 @@ void SpectrumMode::drawAxis(M5Canvas& canvas) {
     
     for (int8_t rssi = -30; rssi >= -90; rssi -= 20) {
         int y = rssiToY(rssi);
+        // Shift label down if it would be cut off by top bar (font height ~8px, so 4px minimum)
+        int labelY = (y < 6) ? 6 : y;
         canvas.drawFastHLine(SPECTRUM_LEFT - 4, y, 3, COLOR_FG);
-        canvas.drawString(String(rssi), SPECTRUM_LEFT - 5, y);
+        canvas.drawString(String(rssi), SPECTRUM_LEFT - 5, labelY);
     }
     
     // Baseline
