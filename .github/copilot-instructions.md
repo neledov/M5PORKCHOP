@@ -160,8 +160,10 @@ pio run -t upload -e m5cardputer  # Upload release only
 ### Unit Tests (CI)
 Tests run automatically on GitHub Actions for every push to `main` or `develop` and every PR to `main`. The test suite uses Unity framework on the `native` platform (not ESP32).
 
-```powershell
-pio test -e native             # Run all tests locally (requires gcc)
+**Note**: Tests require GCC and only run on Linux/macOS. Windows does not have GCC by default, so tests are run exclusively in CI (Ubuntu). Do not attempt to run `pio test -e native` on Windows without WSL or MinGW.
+
+```bash
+pio test -e native             # Run all tests locally (Linux/macOS only)
 pio test -e native_coverage    # Run with coverage report
 ```
 
