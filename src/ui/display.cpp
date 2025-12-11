@@ -119,9 +119,9 @@ void Display::update() {
             break;
             
         case PorkchopMode::LOG_VIEWER:
-            // LogViewer handles main canvas rendering, but we still draw bars
+            // LogViewer::render() handles main canvas and bottom bar
+            // We only need to draw top bar here (mode indicator, clock, battery)
             drawTopBar();
-            drawBottomBar();
             return;
     }
     
