@@ -123,22 +123,59 @@ enum class PhraseCategory : uint8_t {
     COUNT  // Must be last
 };
 
-// Last used phrase index per category (-1 = none)
-static int8_t lastPhraseIdx[(int)PhraseCategory::COUNT] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+// Phase 5: Track last 3 phrase indices per category for better variety
+static const int PHRASE_HISTORY_SIZE = 3;
+static int8_t phraseHistory[(int)PhraseCategory::COUNT][PHRASE_HISTORY_SIZE];
+static uint8_t phraseHistoryIdx[(int)PhraseCategory::COUNT] = {0};  // Write position
 
-// Helper: pick random phrase avoiding last used
+// Initialize phrase history to -1 (no history)
+static bool phraseHistoryInit = false;
+static void initPhraseHistory() {
+    if (phraseHistoryInit) return;
+    for (int c = 0; c < (int)PhraseCategory::COUNT; c++) {
+        for (int i = 0; i < PHRASE_HISTORY_SIZE; i++) {
+            phraseHistory[c][i] = -1;
+        }
+    }
+    phraseHistoryInit = true;
+}
+
+// Check if phrase index is in recent history for this category
+static bool isInHistory(int catIdx, int idx) {
+    for (int i = 0; i < PHRASE_HISTORY_SIZE; i++) {
+        if (phraseHistory[catIdx][i] == idx) return true;
+    }
+    return false;
+}
+
+// Add phrase index to history (circular buffer)
+static void addToHistory(int catIdx, int idx) {
+    phraseHistory[catIdx][phraseHistoryIdx[catIdx]] = idx;
+    phraseHistoryIdx[catIdx] = (phraseHistoryIdx[catIdx] + 1) % PHRASE_HISTORY_SIZE;
+}
+
+// Helper: pick random phrase avoiding last 3 used
 static int pickPhraseIdx(PhraseCategory cat, int count) {
+    initPhraseHistory();
     int catIdx = (int)cat;
     int idx;
-    if (count <= 1) {
-        idx = 0;
-    } else {
-        // Pick random, but skip last used
+    
+    if (count <= PHRASE_HISTORY_SIZE) {
+        // Not enough phrases to avoid all history - just avoid last one
+        int lastIdx = phraseHistory[catIdx][(phraseHistoryIdx[catIdx] + PHRASE_HISTORY_SIZE - 1) % PHRASE_HISTORY_SIZE];
         do {
             idx = random(0, count);
-        } while (idx == lastPhraseIdx[catIdx] && count > 1);
+        } while (idx == lastIdx && count > 1);
+    } else {
+        // Enough phrases - try to avoid all history
+        int attempts = 0;
+        do {
+            idx = random(0, count);
+            attempts++;
+        } while (isInHistory(catIdx, idx) && attempts < 10);
     }
-    lastPhraseIdx[catIdx] = idx;
+    
+    addToHistory(catIdx, idx);
     return idx;
 }
 
