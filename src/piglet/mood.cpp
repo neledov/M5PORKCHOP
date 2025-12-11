@@ -589,16 +589,23 @@ void Mood::onNoActivity(uint32_t seconds) {
     }
     lastInactivityUpdate = now;
     
-    if (seconds > 300) {
-        // Very bored after 5 minutes
+    // Phase 7: Patience affects boredom thresholds
+    // High patience = pig takes longer to get bored
+    // patience 0.0 = gets bored at 60s/150s, patience 1.0 = gets bored at 180s/450s
+    const PersonalityConfig& pers = Config::personality();
+    uint32_t boredThreshold = 120 + (uint32_t)(pers.patience * 180);    // 120-300s
+    uint32_t veryBoredThreshold = 300 + (uint32_t)(pers.patience * 300); // 300-600s
+    
+    if (seconds > veryBoredThreshold) {
+        // Very bored - patience exhausted
         happiness = max(happiness - 2, -100);
         if (happiness < -20) {
             int idx = pickPhraseIdx(PhraseCategory::SLEEPY, sizeof(PHRASES_SLEEPY) / sizeof(PHRASES_SLEEPY[0]));
             currentPhrase = PHRASES_SLEEPY[idx];
             lastPhraseChange = now;  // Prevent immediate re-selection
         }
-    } else if (seconds > 120) {
-        // Getting bored after 2 minutes
+    } else if (seconds > boredThreshold) {
+        // Getting bored
         happiness = max(happiness - 1, -100);
     }
 }
@@ -663,6 +670,30 @@ void Mood::selectPhrase() {
     if (specialRoll < 15 && sess.networks > 0) {  // 10% after rare check
         int idx = pickPhraseIdx(PhraseCategory::DYNAMIC, PHRASES_DYNAMIC_COUNT);
         currentPhrase = formatDynamicPhrase(PHRASES_DYNAMIC[idx]);
+        return;
+    }
+    
+    // Phase 7: Personality trait influence
+    const PersonalityConfig& pers = Config::personality();
+    int personalityRoll = random(0, 100);
+    
+    // High aggression (>0.6) can trigger hunting phrases even when happy
+    if (pers.aggression > 0.6f && personalityRoll < (int)(pers.aggression * 30)) {
+        phrases = PHRASES_HUNTING;
+        count = sizeof(PHRASES_HUNTING) / sizeof(PHRASES_HUNTING[0]);
+        cat = PhraseCategory::HUNTING;
+        int idx = pickPhraseIdx(cat, count);
+        currentPhrase = phrases[idx];
+        return;
+    }
+    
+    // High curiosity (>0.7) with activity can trigger excited phrases
+    if (pers.curiosity > 0.7f && sess.networks > 5 && personalityRoll < (int)(pers.curiosity * 25)) {
+        phrases = PHRASES_EXCITED;
+        count = sizeof(PHRASES_EXCITED) / sizeof(PHRASES_EXCITED[0]);
+        cat = PhraseCategory::EXCITED;
+        int idx = pickPhraseIdx(cat, count);
+        currentPhrase = phrases[idx];
         return;
     }
     
