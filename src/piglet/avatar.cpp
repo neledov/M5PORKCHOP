@@ -11,6 +11,10 @@ uint32_t Avatar::lastBlinkTime = 0;
 uint32_t Avatar::blinkInterval = 3000;
 int Avatar::moodIntensity = 0;  // Phase 8: -100 to 100
 
+// Blink animation hold
+static uint32_t blinkStartTime = 0;
+static const uint32_t BLINK_DURATION_MS = 150;  // Hold blink for 150ms (visible)
+
 // Grass animation state
 bool Avatar::grassMoving = false;
 uint32_t Avatar::lastGrassUpdate = 0;
@@ -175,8 +179,14 @@ void Avatar::draw(M5Canvas& canvas) {
     // Check if we should blink
     if (now - lastBlinkTime > blinkInterval) {
         isBlinking = true;
+        blinkStartTime = now;
         lastBlinkTime = now;
         blinkInterval = random(minBlink, maxBlink);
+    }
+    
+    // Check if blink should end (after BLINK_DURATION_MS)
+    if (isBlinking && (now - blinkStartTime > BLINK_DURATION_MS)) {
+        isBlinking = false;
     }
 
     // Calculate intensity-adjusted flip interval
@@ -197,7 +207,7 @@ void Avatar::draw(M5Canvas& canvas) {
     
     if (isBlinking && currentState != AvatarState::SLEEPY) {
         frame = facingRight ? AVATAR_BLINK_R : AVATAR_BLINK_L;
-        isBlinking = false;
+        // Blink duration handled by timer above, don't clear here
     } else {
         switch (currentState) {
             case AvatarState::HAPPY:    
