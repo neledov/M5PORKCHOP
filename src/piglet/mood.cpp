@@ -54,16 +54,77 @@ int Mood::getEffectiveHappiness() {
     return constrain(happiness + momentumBoost, -100, 100);
 }
 
+// --- Phase 4: Dynamic Phrase Templates ---
+// Templates with $VAR tokens replaced with live data
+
+const char* PHRASES_DYNAMIC[] = {
+    "$NET truffles found",
+    "$HS handshakes ez",
+    "lvl $LVL piggy",
+    "$DEAUTH kicks today",
+    "$NET and counting",
+    "rank $LVL unlocked",
+    "$HS pwnage counter",
+    "$KM km of mud",
+    "$NET sniffs so far",
+    "bacon lvl $LVL",
+    "$DEAUTH boot party"
+};
+
+static const int PHRASES_DYNAMIC_COUNT = sizeof(PHRASES_DYNAMIC) / sizeof(PHRASES_DYNAMIC[0]);
+
+// Buffer for formatted dynamic phrase
+static char dynamicPhraseBuf[48];
+
+// Format a dynamic phrase template with live data
+static const char* formatDynamicPhrase(const char* templ) {
+    const SessionStats& sess = XP::getSession();
+    char* out = dynamicPhraseBuf;
+    const char* p = templ;
+    int remaining = sizeof(dynamicPhraseBuf) - 1;
+    
+    while (*p && remaining > 0) {
+        if (*p == '$') {
+            // Check for token
+            if (strncmp(p, "$NET", 4) == 0) {
+                int n = snprintf(out, remaining, "%lu", (unsigned long)sess.networks);
+                out += n; remaining -= n; p += 4;
+            } else if (strncmp(p, "$HS", 3) == 0) {
+                int n = snprintf(out, remaining, "%lu", (unsigned long)sess.handshakes);
+                out += n; remaining -= n; p += 3;
+            } else if (strncmp(p, "$DEAUTH", 7) == 0) {
+                int n = snprintf(out, remaining, "%lu", (unsigned long)sess.deauths);
+                out += n; remaining -= n; p += 7;
+            } else if (strncmp(p, "$LVL", 4) == 0) {
+                int n = snprintf(out, remaining, "%u", XP::getLevel());
+                out += n; remaining -= n; p += 4;
+            } else if (strncmp(p, "$KM", 3) == 0) {
+                int n = snprintf(out, remaining, "%.1f", sess.distanceM / 1000.0f);
+                out += n; remaining -= n; p += 3;
+            } else {
+                // Unknown token, copy as-is
+                *out++ = *p++;
+                remaining--;
+            }
+        } else {
+            *out++ = *p++;
+            remaining--;
+        }
+    }
+    *out = '\0';
+    return dynamicPhraseBuf;
+}
+
 // Phrase category enum for no-repeat tracking
 enum class PhraseCategory : uint8_t {
     HAPPY, EXCITED, HUNTING, SLEEPY, SAD, WARHOG, WARHOG_FOUND,
     PIGGYBLUES_TARGETED, PIGGYBLUES_STATUS, PIGGYBLUES_IDLE,
-    DEAUTH, DEAUTH_SUCCESS, PMKID, SNIFFING, MENU_IDLE, RARE,
+    DEAUTH, DEAUTH_SUCCESS, PMKID, SNIFFING, MENU_IDLE, RARE, DYNAMIC,
     COUNT  // Must be last
 };
 
 // Last used phrase index per category (-1 = none)
-static int8_t lastPhraseIdx[(int)PhraseCategory::COUNT] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+static int8_t lastPhraseIdx[(int)PhraseCategory::COUNT] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
 // Helper: pick random phrase avoiding last used
 static int pickPhraseIdx(PhraseCategory cat, int count) {
@@ -474,13 +535,21 @@ void Mood::selectPhrase() {
     int effectiveMood = getEffectiveHappiness();
     
     // Phase 3: 5% chance for rare phrase (surprise variety)
-    int rareRoll = random(0, 100);
-    if (rareRoll < 5) {
+    int specialRoll = random(0, 100);
+    if (specialRoll < 5) {
         phrases = PHRASES_RARE;
         count = sizeof(PHRASES_RARE) / sizeof(PHRASES_RARE[0]);
         cat = PhraseCategory::RARE;
         int idx = pickPhraseIdx(cat, count);
         currentPhrase = phrases[idx];
+        return;
+    }
+    
+    // Phase 4: 10% chance for dynamic phrase (only if we have data)
+    const SessionStats& sess = XP::getSession();
+    if (specialRoll < 15 && sess.networks > 0) {  // 10% after rare check
+        int idx = pickPhraseIdx(PhraseCategory::DYNAMIC, PHRASES_DYNAMIC_COUNT);
+        currentPhrase = formatDynamicPhrase(PHRASES_DYNAMIC[idx]);
         return;
     }
     
