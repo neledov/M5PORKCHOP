@@ -744,6 +744,9 @@ void Mood::updateAvatarState() {
     // Use effective happiness (base + momentum) for avatar state
     int effectiveMood = getEffectiveHappiness();
     
+    // Phase 8: Pass mood intensity to avatar for animation timing
+    Avatar::setMoodIntensity(effectiveMood);
+    
     if (effectiveMood > 70) {
         Avatar::setState(AvatarState::EXCITED);
     } else if (effectiveMood > 30) {

@@ -20,6 +20,9 @@ public:
     static void setState(AvatarState state);
     static AvatarState getState() { return currentState; }
     
+    // Phase 8: Intensity-based animation modifiers
+    static void setMoodIntensity(int intensity);  // -100 to 100, affects blink/flip rates
+    
     static void blink();
     static void wiggleEars();
     
@@ -36,6 +39,7 @@ private:
     static bool earsUp;
     static uint32_t lastBlinkTime;
     static uint32_t blinkInterval;
+    static int moodIntensity;  // Phase 8: -100 to 100
     
     // Grass animation state
     static bool grassMoving;

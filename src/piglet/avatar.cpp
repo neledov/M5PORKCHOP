@@ -9,6 +9,7 @@ bool Avatar::isBlinking = false;
 bool Avatar::earsUp = true;
 uint32_t Avatar::lastBlinkTime = 0;
 uint32_t Avatar::blinkInterval = 3000;
+int Avatar::moodIntensity = 0;  // Phase 8: -100 to 100
 
 // Grass animation state
 bool Avatar::grassMoving = false;
@@ -146,6 +147,10 @@ void Avatar::setState(AvatarState state) {
     currentState = state;
 }
 
+void Avatar::setMoodIntensity(int intensity) {
+    moodIntensity = constrain(intensity, -100, 100);
+}
+
 void Avatar::blink() {
     isBlinking = true;
 }
@@ -157,18 +162,34 @@ void Avatar::wiggleEars() {
 void Avatar::draw(M5Canvas& canvas) {
     uint32_t now = millis();
 
+    // Phase 8: Mood intensity affects animation timing
+    // High positive = excited (faster blinks, more looking around)
+    // High negative = lethargic (slower blinks, less movement)
+    
+    // Calculate intensity-adjusted blink interval
+    // Base: 4000-8000ms, excited (-50%): 2000-4000ms, sad (+50%): 6000-12000ms
+    float blinkMod = 1.0f - (moodIntensity / 200.0f);  // 0.5 to 1.5
+    uint32_t minBlink = (uint32_t)(4000 * blinkMod);
+    uint32_t maxBlink = (uint32_t)(8000 * blinkMod);
+    
     // Check if we should blink
     if (now - lastBlinkTime > blinkInterval) {
         isBlinking = true;
         lastBlinkTime = now;
-        blinkInterval = random(4000, 8000);
+        blinkInterval = random(minBlink, maxBlink);
     }
 
+    // Calculate intensity-adjusted flip interval
+    // Excited pig looks around more, sad pig stares
+    float flipMod = 1.0f - (moodIntensity / 150.0f);  // ~0.33 to ~1.66
+    uint32_t minFlip = (uint32_t)(5000 * flipMod);
+    uint32_t maxFlip = (uint32_t)(15000 * flipMod);
+    
     // Check if we should flip direction (look around randomly)
     if (now - lastFlipTime > flipInterval) {
         facingRight = random(0, 2) == 1;  // Random direction
         lastFlipTime = now;
-        flipInterval = random(5000, 15000);
+        flipInterval = random(minFlip, maxFlip);
     }
     
     // Select frame based on state and direction
