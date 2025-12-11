@@ -54,6 +54,50 @@ int Mood::getEffectiveHappiness() {
     return constrain(happiness + momentumBoost, -100, 100);
 }
 
+// --- Phase 6: Phrase Chaining ---
+// Queue up to 3 phrases for sequential display
+
+static const uint32_t PHRASE_CHAIN_DELAY_MS = 2000;  // 2 seconds between chain phrases
+
+static void queuePhrase(const String& phrase) {
+    if (Mood::phraseQueueCount < 3) {
+        Mood::phraseQueue[Mood::phraseQueueCount] = phrase;
+        Mood::phraseQueueCount++;
+    }
+}
+
+static void queuePhrases(const char* p1, const char* p2 = nullptr, const char* p3 = nullptr) {
+    // Clear existing queue
+    Mood::phraseQueueCount = 0;
+    if (p1) queuePhrase(String(p1));
+    if (p2) queuePhrase(String(p2));
+    if (p3) queuePhrase(String(p3));
+    Mood::lastQueuePop = millis();
+}
+
+// Called from update() to process phrase queue
+static bool processQueue() {
+    if (Mood::phraseQueueCount == 0) return false;
+    
+    uint32_t now = millis();
+    if (now - Mood::lastQueuePop < PHRASE_CHAIN_DELAY_MS) {
+        return true;  // Still waiting, but queue is active
+    }
+    
+    // Pop first phrase from queue
+    Mood::currentPhrase = Mood::phraseQueue[0];
+    
+    // Shift remaining phrases down
+    for (uint8_t i = 0; i < Mood::phraseQueueCount - 1; i++) {
+        Mood::phraseQueue[i] = Mood::phraseQueue[i + 1];
+    }
+    Mood::phraseQueueCount--;
+    Mood::lastQueuePop = now;
+    Mood::lastPhraseChange = now;
+    
+    return Mood::phraseQueueCount > 0;  // True if more phrases waiting
+}
+
 // --- Phase 4: Dynamic Phrase Templates ---
 // Templates with $VAR tokens replaced with live data
 
@@ -350,6 +394,13 @@ void Mood::init() {
 void Mood::update() {
     uint32_t now = millis();
     
+    // Phase 6: Process phrase queue first
+    if (phraseQueueCount > 0) {
+        processQueue();
+        updateAvatarState();
+        return;  // Don't do normal phrase cycling while queue active
+    }
+    
     // Check for inactivity
     uint32_t inactiveSeconds = (now - lastActivityTime) / 1000;
     if (inactiveSeconds > 60) {
@@ -379,25 +430,34 @@ void Mood::onHandshakeCaptured(const char* apName) {
         XP::addXP(XPEvent::LOW_BATTERY_CAPTURE);
     }
     
-    // Show AP name in phrase if available
+    // Phase 6: Use phrase chaining for handshake celebration
+    const SessionStats& sess = XP::getSession();
+    char buf1[48], buf2[48], buf3[48];
+    
+    // First phrase - the capture announcement
     if (apName && strlen(apName) > 0) {
         String ap = String(apName);
-        if (ap.length() > 12) ap = ap.substring(0, 12) + "..";
-        const char* templates[] = {
-            "%s pwned",
-            "%s gg ez",
-            "rekt %s",
-            "%s is mine"
-        };
-        int idx = random(0, 4);
-        char buf[48];
-        snprintf(buf, sizeof(buf), templates[idx], ap.c_str());
-        currentPhrase = buf;
+        if (ap.length() > 10) ap = ap.substring(0, 10) + "..";
+        const char* templates[] = { "%s pwned", "%s gg ez", "rekt %s", "%s is mine" };
+        snprintf(buf1, sizeof(buf1), templates[random(0, 4)], ap.c_str());
     } else {
         int idx = pickPhraseIdx(PhraseCategory::EXCITED, sizeof(PHRASES_EXCITED) / sizeof(PHRASES_EXCITED[0]));
-        currentPhrase = PHRASES_EXCITED[idx];
+        strncpy(buf1, PHRASES_EXCITED[idx], sizeof(buf1) - 1);
+        buf1[sizeof(buf1) - 1] = '\0';
     }
+    
+    // Second phrase - the count
+    snprintf(buf2, sizeof(buf2), "%lu today!", (unsigned long)(sess.handshakes + 1));
+    
+    // Third phrase - celebration
+    const char* celebrations[] = { "oink++", "gg bacon", "ez mode", "pwn train" };
+    strncpy(buf3, celebrations[random(0, 4)], sizeof(buf3) - 1);
+    buf3[sizeof(buf3) - 1] = '\0';
+    
+    // Set first phrase immediately, queue rest
+    currentPhrase = buf1;
     lastPhraseChange = millis();
+    queuePhrases(buf2, buf3);
     
     // Celebratory beep for handshake capture (higher pitch than deauth)
     if (Config::personality().soundEnabled) {
@@ -418,10 +478,26 @@ void Mood::onPMKIDCaptured(const char* apName) {
         XP::addXP(XPEvent::LOW_BATTERY_CAPTURE);
     }
     
-    // Show PMKID-specific phrase
+    // Phase 6: PMKID gets special 3-phrase chain
+    char buf1[48], buf2[48], buf3[48];
+    
+    // First phrase - PMKID celebration
     int idx = pickPhraseIdx(PhraseCategory::PMKID, sizeof(PHRASES_PMKID_CAPTURED) / sizeof(PHRASES_PMKID_CAPTURED[0]));
-    currentPhrase = PHRASES_PMKID_CAPTURED[idx];
+    strncpy(buf1, PHRASES_PMKID_CAPTURED[idx], sizeof(buf1) - 1);
+    buf1[sizeof(buf1) - 1] = '\0';
+    
+    // Second phrase - explanation
+    strncpy(buf2, "no client needed", sizeof(buf2) - 1);
+    buf2[sizeof(buf2) - 1] = '\0';
+    
+    // Third phrase - hacker brag
+    const char* brags[] = { "big brain oink", "200 iq snout", "galaxy brain", "ez clap pmkid" };
+    strncpy(buf3, brags[random(0, 4)], sizeof(buf3) - 1);
+    buf3[sizeof(buf3) - 1] = '\0';
+    
+    currentPhrase = buf1;
     lastPhraseChange = millis();
+    queuePhrases(buf2, buf3);
     
     // Triple beep for PMKID - it's special!
     if (Config::personality().soundEnabled) {

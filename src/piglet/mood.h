@@ -36,10 +36,15 @@ public:
     static int getCurrentHappiness();
     static int getEffectiveHappiness();  // Happiness with momentum applied
     
-private:
+    // Phase 6: Public for phrase chaining helper functions
     static String currentPhrase;
-    static int happiness;  // -100 to 100 (base level)
     static uint32_t lastPhraseChange;
+    static String phraseQueue[3];
+    static uint8_t phraseQueueCount;
+    static uint32_t lastQueuePop;
+    
+private:
+    static int happiness;  // -100 to 100 (base level)
     static uint32_t phraseInterval;
     static uint32_t lastActivityTime;
     
@@ -47,11 +52,6 @@ private:
     static int momentumBoost;           // Current boost amount (decays)
     static uint32_t lastBoostTime;      // When boost was applied
     static const uint32_t MOMENTUM_DECAY_MS = 30000;  // 30s full decay
-    
-    // Phrase queue for chaining (Phase 6)
-    static String phraseQueue[3];
-    static uint8_t phraseQueueCount;
-    static uint32_t lastQueuePop;
     
     static void selectPhrase();
     static void updateAvatarState();
