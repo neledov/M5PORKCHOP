@@ -70,12 +70,6 @@ const char* AVATAR_ANGRY_R[] = {
     "(    )"
 };
 
-const char* AVATAR_BLINK_R[] = {
-    " ?  ? ",
-    "(- 00)",
-    "(    )"
-};
-
 // Left-looking frames (snout 00 on left side of face, pig looks LEFT, z pigtail)
 const char* AVATAR_NEUTRAL_L[] = {
     " ?  ? ",
@@ -119,15 +113,10 @@ const char* AVATAR_ANGRY_L[] = {
     "(    )z"
 };
 
-const char* AVATAR_BLINK_L[] = {
-    " ?  ? ",
-    "(00 -)",
-    "(    )z"
-};
-
 void Avatar::init() {
     currentState = AvatarState::NEUTRAL;
     isBlinking = false;
+    isSniffing = false;
     earsUp = true;
     lastBlinkTime = millis();
     blinkInterval = random(4000, 8000);
