@@ -85,4 +85,9 @@ private:
     static void drawSettingsScreen(M5Canvas& canvas);
     static void drawAboutScreen(M5Canvas& canvas);
     static void drawFileTransferScreen(M5Canvas& canvas);
+    
+public:
+    // About screen easter egg handlers (called from porkchop.cpp)
+    static void onAboutEnterPressed();
+    static void resetAboutState();
 };

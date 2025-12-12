@@ -67,6 +67,7 @@ static const struct {
     { ACH_HIDDEN_MASTER,  "H1DDEN MAST3R",  "Find 50 hidden networks" },
     { ACH_WPA3_HUNTER,    "WPA3 HUNT3R",    "Find 25 WPA3 networks" },
     { ACH_MAX_LEVEL,      "MAX L3VEL",      "Reach level 40" },
+    { ACH_ABOUT_JUNKIE,   "AB0UT_JUNK13",   "Read the fine print" },
 };
 
 void AchievementsMenu::init() {

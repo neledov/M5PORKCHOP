@@ -674,6 +674,57 @@ void Display::drawSettingsScreen(M5Canvas& canvas) {
     canvas.drawString("[Enter] to go back", DISPLAY_W / 2, MAIN_H - 12);
 }
 
+// Hacker culture quotes for About screen
+static const char* ABOUT_QUOTES[] = {
+    "hack the planet",
+    "the gibson is ours",
+    "mess with the best",
+    "there is no spoon",
+    "i am invincible!",
+    "shall we play a game?",
+    "the only winning move",
+    "ph34r the piglet",
+    "0wn3d by 0ct0",
+    "root@porkchop:~#",
+    "sudo make me bacon",
+    "rm -rf /trust",
+    "#!/usr/bin/oink",
+    "while(1) { pwn(); }",
+    "segfault in the matrix",
+    "buffer overflow ur life",
+    "0xDEADBEEF",
+    "0xCAFEBABE",
+    "all your base",
+    "never gonna give u up"
+};
+static const int ABOUT_QUOTES_COUNT = sizeof(ABOUT_QUOTES) / sizeof(ABOUT_QUOTES[0]);
+static int aboutQuoteIndex = 0;
+static int aboutEnterCount = 0;
+static bool aboutAchievementShown = false;
+
+void Display::resetAboutState() {
+    // Pick new random quote each time we enter About
+    aboutQuoteIndex = random(0, ABOUT_QUOTES_COUNT);
+    aboutEnterCount = 0;
+    aboutAchievementShown = false;
+}
+
+void Display::onAboutEnterPressed() {
+    aboutEnterCount++;
+    
+    // Easter egg: 5 presses unlocks achievement
+    if (aboutEnterCount >= 5 && !aboutAchievementShown) {
+        if (!XP::hasAchievement(ACH_ABOUT_JUNKIE)) {
+            XP::unlockAchievement(ACH_ABOUT_JUNKIE);
+            showToast("AB0UT_JUNK13 unlocked!");
+        }
+        aboutAchievementShown = true;
+    }
+    
+    // Cycle to next quote
+    aboutQuoteIndex = (aboutQuoteIndex + 1) % ABOUT_QUOTES_COUNT;
+}
+
 void Display::drawAboutScreen(M5Canvas& canvas) {
     canvas.setTextColor(COLOR_FG);
     canvas.setTextDatum(top_center);
@@ -694,20 +745,19 @@ void Display::drawAboutScreen(M5Canvas& canvas) {
     // GitHub (single line)
     canvas.drawString("github.com/neledov/M5PORKCHOP", DISPLAY_W / 2, 50);
     
-    // XP stats - show level and rank
+    // Build date
     canvas.setTextColor(COLOR_ACCENT);
-    char lvlBuf[40];
-    snprintf(lvlBuf, sizeof(lvlBuf), "LVL %d - %s", XP::getLevel(), XP::getTitle());
-    canvas.drawString(lvlBuf, DISPLAY_W / 2, 66);
+    canvas.drawString("built: " __DATE__, DISPLAY_W / 2, 64);
     
-    // Total XP
+    // Random quote
     canvas.setTextColor(COLOR_FG);
-    char xpBuf[24];
-    snprintf(xpBuf, sizeof(xpBuf), "XP: %lu", XP::getTotalXP());
-    canvas.drawString(xpBuf, DISPLAY_W / 2, 78);
+    char quoteBuf[48];
+    snprintf(quoteBuf, sizeof(quoteBuf), "\"%s\"", ABOUT_QUOTES[aboutQuoteIndex]);
+    canvas.drawString(quoteBuf, DISPLAY_W / 2, 78);
     
+    // Easter egg hint
     canvas.setTextColor(COLOR_ACCENT);
-    canvas.drawString("[Enter] to go back", DISPLAY_W / 2, MAIN_H - 12);
+    canvas.drawString("[Enter] ???", DISPLAY_W / 2, MAIN_H - 12);
 }
 
 void Display::drawFileTransferScreen(M5Canvas& canvas) {

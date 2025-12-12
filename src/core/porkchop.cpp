@@ -217,6 +217,9 @@ void Porkchop::setMode(PorkchopMode mode) {
         case PorkchopMode::SWINE_STATS:
             SwineStats::show();
             break;
+        case PorkchopMode::ABOUT:
+            Display::resetAboutState();
+            break;
         default:
             break;
     }
@@ -308,10 +311,10 @@ void Porkchop::handleInput() {
         return;
     }
     
-    // Enter key to go back from About
+    // Enter key in About mode - easter egg
     if (M5Cardputer.Keyboard.isKeyPressed(KEY_ENTER)) {
         if (currentMode == PorkchopMode::ABOUT) {
-            setMode(PorkchopMode::MENU);
+            Display::onAboutEnterPressed();
             return;
         }
     }

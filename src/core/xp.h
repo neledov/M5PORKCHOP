@@ -96,6 +96,7 @@ enum PorkAchievement : uint64_t {
     ACH_HIDDEN_MASTER   = 1ULL << 44,  // 50 hidden networks
     ACH_WPA3_HUNTER     = 1ULL << 45,  // 25 WPA3 networks
     ACH_MAX_LEVEL       = 1ULL << 46,  // Reach level 40
+    ACH_ABOUT_JUNKIE    = 1ULL << 47,  // Press Enter 5x in About screen
 };
 
 // Persistent XP data structure (stored in NVS)

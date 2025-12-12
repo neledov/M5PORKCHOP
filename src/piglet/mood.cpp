@@ -303,64 +303,65 @@ const char* PHRASES_SAD[] = {
     "need dem truffles"
 };
 
-// WARHOG wardriving phrases
+// WARHOG wardriving phrases - GPS recon style
 const char* PHRASES_WARHOG[] = {
-    "hog on patrol",
     "mobile n hostile",
-    "snout mappin",
-    "oink n log",
-    "piggy on a roll",
     "wardrive n thrive",
-    "gps locked",
-    "loggin truffles",
-    "wigle wiggle",
-    "truffle coords",
-    "roamin piggy",
-    "mappin turf"
+    "gps lock n stalk",
+    "coordz on deck",
+    "wigle submission",
+    "kismet vibes",
+    "lat/lon huntin",
+    "ssid cartography",
+    "loggin the ether",
+    "nmea flowin",
+    "ap geolocation",
+    "drive-by recon",
+    "mobile pcap unit"
 };
 
 const char* PHRASES_WARHOG_FOUND[] = {
     "truffle logged",
-    "stash it good",
-    "oink logged",
-    "coords yoinked",
-    "for the herd",
-    "another one",
-    "bagged n tagged",
-    "mine now lol"
+    "coords acquired",
+    "ap triangulated",
+    "wigle fodder",
+    "geotagged loot",
+    "lat/lon banked",
+    "another pin dropped",
+    "ssid catalogued"
 };
 
-// Piggy Blues BLE spam phrases - with format specifiers
+// Piggy Blues BLE spam phrases - BLE attack style
 // All phrases use %s=vendor and %d=rssi
 const char* PHRASES_PIGGYBLUES_TARGETED[] = {
-    "%s pwned @ %ddB",
-    "0wning %s [%ddB]",
-    "%s oinked @ %ddB",
-    "rekt: %s %ddB",
-    "%s spammed %ddB",
-    "pop pop %s %ddB",
-    "%s rekt @ %ddB",
-    "bluejackin %s %ddB"
+    "%s breached @ %ddB",
+    "bluesnarf %s [%ddB]",
+    "%s notif bombed %ddB",
+    "gatt attack %s %ddB",
+    "%s ble rekt @ %ddB",
+    "2.4ghz assault %s %ddB",
+    "uuid storm %s %ddB",
+    "%s payload sent %ddB"
 };
 
 // Status phrases showing scan results - all use %d/%d format
 const char* PHRASES_PIGGYBLUES_STATUS[] = {
-    "%d targets [%d found]",
-    "hunting %d/%d marks",
-    "%d locked, %d scanned",
-    "owning %d of %d",
-    "%d active [%d seen]"
+    "%d marks [%d scanned]",
+    "spammin %d/%d devices",
+    "%d pwned, %d seen",
+    "notif storm: %d of %d",
+    "%d active targets [%d]"
 };
 
-// Idle/scanning phrases
+// Idle/scanning phrases - BLE chaos style
 const char* PHRASES_PIGGYBLUES_IDLE[] = {
-    "beacon storm brewing",
-    "2.4ghz is my domain",
-    "ur notifications r mine",
-    "flooding the airwaves",
-    "chaos mode engaged",
-    "spreading the oink",
-    "making friends (forcibly)"
+    "ble chaos pending",
+    "advert storm ready",
+    "uuid payload loaded",
+    "gatt attack standby",
+    "notif nuke armed",
+    "2.4ghz spectrum owned",
+    "bluejack mode primed"
 };
 
 // Deauth success - 802.11 hacker rap style
@@ -377,17 +378,17 @@ const char* PHRASES_DEAUTH_SUCCESS[] = {
     "%s skill issue"
 };
 
-// PMKID captured - clientless attack, special celebration!
+// PMKID captured - clientless hash extraction style
 const char* PHRASES_PMKID_CAPTURED[] = {
-    "PMKID YOINK!",
-    "CLIENTLESS PWN!",
-    "NO DEAUTH NEEDED!",
-    "STEALTHY GRAB!",
-    "EZ MODE ACTIVATED",
-    "PMKID SNORT!",
-    "SILENT BUT DEADLY",
-    "PASSIVE AGGRESSION",
-    "GHOST MODE PWN"
+    "PMKID EXTRACTED!",
+    "CLIENTLESS HASH!",
+    "RSN IE PWNED!",
+    "EAPOL-FREE LOOT!",
+    "PASSIVE EXTRACTION!",
+    "HASHCAT READY!",
+    "RSN FAIL LOL!",
+    "PMKID YOINKED!",
+    "NO CLIENTS NEEDED!"
 };
 
 // Rare phrases - 5% chance to appear for surprise variety
