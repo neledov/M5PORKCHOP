@@ -576,7 +576,7 @@ void Mood::onHandshakeCaptured(const char* apName) {
     // First phrase - the capture announcement
     if (apName && strlen(apName) > 0) {
         String ap = String(apName);
-        if (ap.length() > 14) ap = ap.substring(0, 14) + "..";
+        if (ap.length() > 20) ap = ap.substring(0, 20) + "..";
         const char* templates[] = { "%s pwned", "%s gg ez", "rekt %s", "%s is mine" };
         snprintf(buf1, sizeof(buf1), templates[random(0, 4)], ap.c_str());
     } else {
@@ -679,7 +679,7 @@ void Mood::onNewNetwork(const char* apName, int8_t rssi, uint8_t channel) {
     // Show AP name with info in funny phrases
     if (apName && strlen(apName) > 0) {
         String ap = String(apName);
-        if (ap.length() > 14) ap = ap.substring(0, 14) + "..";
+        if (ap.length() > 20) ap = ap.substring(0, 20) + "..";
         
         const char* templates[] = {
             "sniffed %s ch%d",
@@ -1013,6 +1013,11 @@ void Mood::updateAvatarState() {
 }
 
 void Mood::draw(M5Canvas& canvas) {
+    // Hide bubble during walk transition
+    if (Avatar::isTransitioning()) {
+        return;  // Pig is walking, no speech bubble
+    }
+    
     // Calculate bubble size based on ACTUAL word-wrapped line count
     // Optimized: 16 chars/line (fits 99px text area), 5 lines max (down to grass at y=73)
     String phrase = currentPhrase;
@@ -1039,9 +1044,13 @@ void Mood::draw(M5Canvas& canvas) {
     }
     if (numLines == 0) numLines = 1;  // At least 1 line
     
-    int bubbleX = 120;  // Closer to avatar (ends ~118px)
+    // Position bubble based on pig facing direction (parallax effect)
+    // Pig facing right = pig on left, bubble on right
+    // Pig facing left = pig on right, bubble on left
+    bool pigFacingRight = Avatar::isFacingRight();
+    int bubbleW = 116;  // Fixed bubble width
+    int bubbleX = pigFacingRight ? 120 : 4;  // Right side or left side
     int bubbleY = 3;
-    int bubbleW = DISPLAY_W - bubbleX - 4;  // = 116px wide
     int lineHeight = 11;
     int bubbleH = 8 + (numLines * lineHeight);  // Padding + actual lines
     
@@ -1052,12 +1061,22 @@ void Mood::draw(M5Canvas& canvas) {
     canvas.fillRoundRect(bubbleX, bubbleY, bubbleW, bubbleH, 6, COLOR_FG);
     
     // Draw filled triangle arrow pointing to piglet (comic-style speech bubble tail)
-    int arrowTipX = bubbleX - 8;              // Tip of arrow (points toward piglet)
+    // Arrow direction depends on bubble position
     int arrowTipY = bubbleY + bubbleH / 2;    // Vertically centered on bubble
-    int arrowBaseX = bubbleX;                  // Base connects to bubble edge
-    int arrowTopY = arrowTipY - 5;            // Top of base
-    int arrowBottomY = arrowTipY + 5;         // Bottom of base
-    canvas.fillTriangle(arrowTipX, arrowTipY, arrowBaseX, arrowTopY, arrowBaseX, arrowBottomY, COLOR_FG);
+    int arrowTopY = arrowTipY - 5;
+    int arrowBottomY = arrowTipY + 5;
+    
+    if (pigFacingRight) {
+        // Bubble on right, arrow points LEFT toward pig
+        int arrowTipX = bubbleX - 8;
+        int arrowBaseX = bubbleX;
+        canvas.fillTriangle(arrowTipX, arrowTipY, arrowBaseX, arrowTopY, arrowBaseX, arrowBottomY, COLOR_FG);
+    } else {
+        // Bubble on left, arrow points RIGHT toward pig
+        int arrowTipX = bubbleX + bubbleW + 8;
+        int arrowBaseX = bubbleX + bubbleW;
+        canvas.fillTriangle(arrowTipX, arrowTipY, arrowBaseX, arrowTopY, arrowBaseX, arrowBottomY, COLOR_FG);
+    }
     
     // Draw phrase inside bubble with word wrapping - BLACK text on pink
     canvas.setTextSize(1);
@@ -1167,7 +1186,7 @@ void Mood::onDeauthing(const char* apName, uint32_t deauthCount) {
     
     // Handle null or empty SSID (hidden networks)
     String ap = (apName && strlen(apName) > 0) ? String(apName) : "ghost AP";
-    if (ap.length() > 14) ap = ap.substring(0, 14) + "..";
+    if (ap.length() > 20) ap = ap.substring(0, 20) + "..";
     
     int idx = pickPhraseIdx(PhraseCategory::DEAUTH, sizeof(PHRASES_DEAUTH) / sizeof(PHRASES_DEAUTH[0]));
     char buf[64];

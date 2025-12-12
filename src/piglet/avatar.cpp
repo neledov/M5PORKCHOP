@@ -11,6 +11,14 @@ uint32_t Avatar::lastBlinkTime = 0;
 uint32_t Avatar::blinkInterval = 3000;
 int Avatar::moodIntensity = 0;  // Phase 8: -100 to 100
 
+// Walk transition state
+bool Avatar::transitioning = false;
+uint32_t Avatar::transitionStartTime = 0;
+int Avatar::transitionFromX = 2;
+int Avatar::transitionToX = 2;
+bool Avatar::transitionToFacingRight = true;
+int Avatar::currentX = 2;
+
 // Sniff animation state
 bool Avatar::isSniffing = false;
 static uint32_t sniffStartTime = 0;
@@ -18,6 +26,8 @@ static const uint32_t SNIFF_DURATION_MS = 100;  // Hold sniff for 100ms
 
 // Grass animation state
 bool Avatar::grassMoving = false;
+bool Avatar::grassDirection = true;  // true = grass scrolls right
+bool Avatar::pendingGrassStart = false;  // Wait for transition before starting grass
 uint32_t Avatar::lastGrassUpdate = 0;
 uint16_t Avatar::grassSpeed = 80;  // Default fast for OINK
 char Avatar::grassPattern[32] = {0};
@@ -128,6 +138,8 @@ void Avatar::init() {
     
     // Init grass pattern - full screen width at size 2 (~24 chars)
     grassMoving = false;
+    grassDirection = true;
+    pendingGrassStart = false;
     grassSpeed = 80;
     lastGrassUpdate = millis();
     for (int i = 0; i < 26; i++) {
@@ -143,6 +155,18 @@ void Avatar::setState(AvatarState state) {
 
 void Avatar::setMoodIntensity(int intensity) {
     moodIntensity = constrain(intensity, -100, 100);
+}
+
+bool Avatar::isFacingRight() {
+    return facingRight;
+}
+
+bool Avatar::isTransitioning() {
+    return transitioning;
+}
+
+int Avatar::getCurrentX() {
+    return currentX;
 }
 
 void Avatar::blink() {
@@ -165,6 +189,28 @@ void Avatar::draw(M5Canvas& canvas) {
     if (isSniffing && (now - sniffStartTime > SNIFF_DURATION_MS)) {
         isSniffing = false;
     }
+    
+    // Handle walk transition animation
+    if (transitioning) {
+        uint32_t elapsed = now - transitionStartTime;
+        if (elapsed >= TRANSITION_DURATION_MS) {
+            // Transition complete
+            transitioning = false;
+            currentX = transitionToX;
+            facingRight = transitionToFacingRight;
+            // Start grass now if it was pending
+            if (pendingGrassStart) {
+                grassMoving = true;
+                pendingGrassStart = false;
+            }
+        } else {
+            // Animate X position (ease in-out)
+            float t = (float)elapsed / TRANSITION_DURATION_MS;
+            // Smooth step: 3t^2 - 2t^3
+            float smoothT = t * t * (3.0f - 2.0f * t);
+            currentX = transitionFromX + (int)((transitionToX - transitionFromX) * smoothT);
+        }
+    }
 
     // Phase 8: Mood intensity affects animation timing
     // High positive = excited (faster blinks, more looking around)
@@ -186,12 +232,21 @@ void Avatar::draw(M5Canvas& canvas) {
     // Calculate intensity-adjusted flip interval
     // Excited pig looks around more, sad pig stares
     float flipMod = 1.0f - (moodIntensity / 150.0f);  // ~0.33 to ~1.66
-    uint32_t minFlip = (uint32_t)(5000 * flipMod);
-    uint32_t maxFlip = (uint32_t)(25000 * flipMod);  // Up to 25-40s when calm
+    uint32_t minFlip = (uint32_t)(10000 * flipMod);   // 10s base (was 5s)
+    uint32_t maxFlip = (uint32_t)(40000 * flipMod);   // 40s base (was 25s)
     
-    // Check if we should flip direction (look around randomly)
-    if (now - lastFlipTime > flipInterval) {
-        facingRight = random(0, 2) == 1;  // Random direction
+    // Check if we should flip direction - start transition instead of instant flip
+    // Disable random flipping while grass is moving (pig must face opposite to grass)
+    if (!transitioning && !grassMoving && !pendingGrassStart && now - lastFlipTime > flipInterval) {
+        bool newFacingRight = random(0, 2) == 1;
+        if (newFacingRight != facingRight) {
+            // Start walk transition
+            transitioning = true;
+            transitionStartTime = now;
+            transitionFromX = currentX;
+            transitionToX = newFacingRight ? 2 : 130;  // Target position
+            transitionToFacingRight = newFacingRight;
+        }
         lastFlipTime = now;
         flipInterval = random(minFlip, maxFlip);
     }
@@ -230,12 +285,30 @@ void Avatar::drawFrame(M5Canvas& canvas, const char** frame, uint8_t lines, bool
     canvas.setTextSize(3);
     canvas.setTextColor(COLOR_ACCENT);
     
-    int startX = 2;
+    // Use animated currentX position (set during transition or at rest)
+    int startX = currentX;
     int startY = 5;
     int lineHeight = 22;
     
     for (uint8_t i = 0; i < lines; i++) {
-        if (i == 1 && (blink || sniff)) {
+        // Handle body line (i=2) for dynamic tail
+        if (i == 2) {
+            char bodyLine[16];
+            if (transitioning) {
+                // During transition: show tail on trailing side
+                bool movingRight = (transitionToX > transitionFromX);
+                if (movingRight) {
+                    strncpy(bodyLine, "z(    )", sizeof(bodyLine));  // Tail trails on left
+                } else {
+                    strncpy(bodyLine, "(    )z", sizeof(bodyLine));  // Tail trails on right
+                }
+            } else {
+                // Stationary: no tail
+                strncpy(bodyLine, "(    )", sizeof(bodyLine));
+            }
+            bodyLine[sizeof(bodyLine) - 1] = '\0';
+            canvas.drawString(bodyLine, startX, startY + i * lineHeight);
+        } else if (i == 1 && (blink || sniff)) {
             // Face line - modify eye and/or nose
             // Face format: "(X 00)" for right-facing, "(00 X)" for left-facing
             char modifiedLine[16];
@@ -274,8 +347,38 @@ void Avatar::drawFrame(M5Canvas& canvas, const char** frame, uint8_t lines, bool
     drawGrass(canvas);
 }
 
-void Avatar::setGrassMoving(bool moving) {
-    grassMoving = moving;
+void Avatar::setGrassMoving(bool moving, bool directionRight) {
+    if (moving) {
+        grassDirection = directionRight;
+        
+        // Pig should face OPPOSITE to grass direction (treadmill effect)
+        // Grass moves right = pig faces left (on right side of screen)
+        // Grass moves left = pig faces right (on left side of screen)
+        bool targetFacing = !directionRight;
+        
+        if (facingRight != targetFacing || transitioning) {
+            // Need to transition first
+            pendingGrassStart = true;
+            grassMoving = false;
+            
+            if (!transitioning) {
+                // Start walk transition to correct position
+                transitioning = true;
+                transitionStartTime = millis();
+                transitionFromX = currentX;
+                transitionToX = targetFacing ? 2 : 130;  // Left side if facing right, right side if facing left
+                transitionToFacingRight = targetFacing;
+            }
+        } else {
+            // Already in correct position, start grass immediately
+            grassMoving = true;
+            pendingGrassStart = false;
+        }
+    } else {
+        // Stop grass immediately
+        grassMoving = false;
+        pendingGrassStart = false;
+    }
 }
 
 void Avatar::setGrassSpeed(uint16_t ms) {
@@ -302,23 +405,23 @@ void Avatar::updateGrass() {
     if (now - lastGrassUpdate < grassSpeed) return;
     lastGrassUpdate = now;
     
-    // Shift pattern based on pig facing direction
-    // Pig faces right = grass scrolls LEFT (ground moves under pig's feet)
-    // Pig faces left = grass scrolls RIGHT (ground moves under pig's feet)
-    if (facingRight) {
-        // Shift left (pig walking right, ground moves left under feet)
-        char first = grassPattern[0];
-        for (int i = 0; i < 25; i++) {
-            grassPattern[i] = grassPattern[i + 1];
-        }
-        grassPattern[25] = first;
-    } else {
-        // Shift right (pig walking left, ground moves right under feet)
+    // Shift pattern based on grassDirection (set when grass started)
+    // grassDirection=true: grass scrolls RIGHT (pig faces left, walking left through world)
+    // grassDirection=false: grass scrolls LEFT (pig faces right, walking right through world)
+    if (grassDirection) {
+        // Shift right (grass scrolls right)
         char last = grassPattern[25];
         for (int i = 25; i > 0; i--) {
             grassPattern[i] = grassPattern[i - 1];
         }
         grassPattern[0] = last;
+    } else {
+        // Shift left (grass scrolls left)
+        char first = grassPattern[0];
+        for (int i = 0; i < 25; i++) {
+            grassPattern[i] = grassPattern[i + 1];
+        }
+        grassPattern[25] = first;
     }
     
     // Occasionally mutate a character for variety
