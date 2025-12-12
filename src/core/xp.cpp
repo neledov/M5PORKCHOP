@@ -228,6 +228,10 @@ void XP::save() {
 // Static for km tracking - needs to be reset on session start
 static uint32_t lastKmAwarded = 0;
 
+// Last significant XP gain popup state (avoid chatty +1/+2 events)
+static uint16_t lastXPGainAmount = 0;
+static uint32_t lastXPGainMs = 0;
+
 void XP::startSession() {
     memset(&session, 0, sizeof(session));
     session.startTime = millis();
@@ -347,6 +351,12 @@ void XP::addXP(uint16_t amount) {
     
     data.totalXP += amount;
     session.xp += amount;
+
+    // Record last significant XP gain for UI (show +XP<N> under the bar)
+    if (amount > 2) {
+        lastXPGainAmount = amount;
+        lastXPGainMs = millis();
+    }
     
     uint8_t newLevel = calculateLevel(data.totalXP);
     
@@ -867,6 +877,14 @@ void XP::drawBar(M5Canvas& canvas) {
     int xpLabelX = barX - xpLabelW - 2;  // 2px gap before bar
     canvas.setTextDatum(top_left);
     canvas.drawString("XP:", xpLabelX, barY);
+
+    // Draw +XP<N> below the XP label (only for >2 XP increments)
+    const uint32_t XP_GAIN_DISPLAY_MS = 1500;
+    if (lastXPGainAmount > 2 && (millis() - lastXPGainMs) < XP_GAIN_DISPLAY_MS) {
+        char gainStr[16];
+        snprintf(gainStr, sizeof(gainStr), "+%u XP!", (unsigned)lastXPGainAmount);
+        canvas.drawString(gainStr, xpLabelX, barY + 8);
+    }
     
     // Draw progress bar
     canvas.drawString(barStr, barX, barY);
