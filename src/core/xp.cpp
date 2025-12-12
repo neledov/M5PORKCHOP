@@ -882,7 +882,7 @@ void XP::drawBar(M5Canvas& canvas) {
     const uint32_t XP_GAIN_DISPLAY_MS = 1500;
     if (lastXPGainAmount > 2 && (millis() - lastXPGainMs) < XP_GAIN_DISPLAY_MS) {
         char gainStr[16];
-        snprintf(gainStr, sizeof(gainStr), "+%u XP!", (unsigned)lastXPGainAmount);
+        snprintf(gainStr, sizeof(gainStr), "+%u PTS!", (unsigned)lastXPGainAmount);
         canvas.drawString(gainStr, xpLabelX, barY + 8);
     }
     
