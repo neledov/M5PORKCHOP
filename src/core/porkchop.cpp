@@ -86,7 +86,7 @@ void Porkchop::init() {
         {"ABOUT", 6, "Credits and info"}
     };
     Menu::setItems(mainMenuItems);
-    Menu::setTitle("PORKCHOP");
+    Menu::setTitle("PORKCHOP OS");
     
     // Menu selection handler
     Menu::setCallback([this](uint8_t actionId) {
