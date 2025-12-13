@@ -412,6 +412,11 @@ void Avatar::setGrassMoving(bool moving, bool directionRight) {
     if (moving) {
         grassDirection = directionRight;
         
+        // Lock pig facing direction to match treadmill physics
+        // grassDirection=true: grass scrolls right, pig walks left, face LEFT
+        // grassDirection=false: grass scrolls left, pig walks right, face RIGHT
+        facingRight = !directionRight;
+        
         // Just start grass immediately - no transition blocking
         // The treadmill walk effect only triggers on MODE START, not per-frame sync
         // If pig is already transitioning, grass will start when transition ends

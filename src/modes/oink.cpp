@@ -105,6 +105,10 @@ const size_t MAX_PMKIDS = 50;          // Max PMKIDs (smaller than handshakes)
 static uint32_t lastDeauthTime = 0;
 static uint32_t lastMoodUpdate = 0;
 
+// Random hunting sniff - periodic sniff to show piglet is actively hunting
+static uint32_t lastRandomSniff = 0;
+static const int RANDOM_SNIFF_CHANCE = 8;  // 8% chance per second = ~12 sec average
+
 // Auto-attack state machine (like M5Gotchi)
 enum class AutoState {
     SCANNING,       // Scanning for networks
@@ -166,6 +170,7 @@ void OinkMode::init() {
     lastDeauthTime = 0;
     lastPwnedSSID = "";
     lastMoodUpdate = 0;
+    lastRandomSniff = 0;
     checkedForPendingHandshake = false;
     hasPendingHandshake = false;
     
@@ -213,8 +218,8 @@ void OinkMode::start() {
     lastHopTime = millis();
     lastScanTime = millis();
     
-    // Set fast grass animation speed for OINK mode
-    Avatar::setGrassSpeed(80);  // Fast ~12 FPS
+    // Set grass animation speed for OINK mode
+    Avatar::setGrassSpeed(120);  // ~8 FPS casual trot
     
     // Initialize auto-attack state machine
     autoState = AutoState::SCANNING;
@@ -320,6 +325,15 @@ void OinkMode::update() {
             if (now - lastHopTime > SwineStats::getChannelHopInterval()) {
                 hopChannel();
                 lastHopTime = now;
+            }
+            
+            // Random hunting sniff - shows piglet is actively sniffing
+            // Check every 1 second with 8% chance = ~12 second average between sniffs
+            if (now - lastRandomSniff > 1000) {
+                lastRandomSniff = now;  // Always reset timer on check
+                if (random(0, 100) < RANDOM_SNIFF_CHANCE) {
+                    Avatar::sniff();
+                }
             }
             
             // Update mood
