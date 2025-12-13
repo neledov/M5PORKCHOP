@@ -12,6 +12,7 @@ uint8_t CapturesMenu::selectedIndex = 0;
 uint8_t CapturesMenu::scrollOffset = 0;
 bool CapturesMenu::active = false;
 bool CapturesMenu::keyWasPressed = false;
+bool CapturesMenu::nukeConfirmActive = false;
 
 void CapturesMenu::init() {
     captures.clear();
@@ -136,6 +137,19 @@ void CapturesMenu::handleInput() {
     
     auto keys = M5Cardputer.Keyboard.keysState();
     
+    // Handle nuke confirmation modal
+    if (nukeConfirmActive) {
+        if (M5Cardputer.Keyboard.isKeyPressed('y') || M5Cardputer.Keyboard.isKeyPressed('Y')) {
+            nukeLoot();
+            nukeConfirmActive = false;
+            scanCaptures();  // Refresh list (should be empty now)
+        } else if (M5Cardputer.Keyboard.isKeyPressed('n') || M5Cardputer.Keyboard.isKeyPressed('N') ||
+                   M5Cardputer.Keyboard.isKeyPressed('`') || keys.enter) {
+            nukeConfirmActive = false;  // Cancel
+        }
+        return;
+    }
+    
     // Navigation with ; (up) and . (down)
     if (M5Cardputer.Keyboard.isKeyPressed(';')) {
         if (selectedIndex > 0) {
@@ -152,6 +166,13 @@ void CapturesMenu::handleInput() {
             if (selectedIndex >= scrollOffset + VISIBLE_ITEMS) {
                 scrollOffset = selectedIndex - VISIBLE_ITEMS + 1;
             }
+        }
+    }
+    
+    // Nuke all loot with D key
+    if (M5Cardputer.Keyboard.isKeyPressed('d') || M5Cardputer.Keyboard.isKeyPressed('D')) {
+        if (!captures.empty()) {
+            nukeConfirmActive = true;
         }
     }
     
@@ -234,7 +255,74 @@ void CapturesMenu::draw(M5Canvas& canvas) {
         canvas.setTextColor(COLOR_FG);
         canvas.print("v");
     }
+    
+    // Draw nuke confirmation modal if active
+    if (nukeConfirmActive) {
+        drawNukeConfirm(canvas);
+    }
     // BSSID shown in bottom bar via getSelectedBSSID()
+}
+
+void CapturesMenu::drawNukeConfirm(M5Canvas& canvas) {
+    // Modal box dimensions
+    const int boxW = 180;
+    const int boxH = 60;
+    const int boxX = (canvas.width() - boxW) / 2;
+    const int boxY = (canvas.height() - boxH) / 2 - 5;
+    
+    // Draw box with border
+    canvas.fillRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4, COLOR_FG);
+    canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
+    
+    canvas.setTextColor(COLOR_FG);
+    canvas.setTextSize(1);
+    
+    // Hacker edgy message
+    canvas.setCursor(boxX + 8, boxY + 8);
+    canvas.print("SCORCHED EARTH MODE");
+    canvas.setCursor(boxX + 8, boxY + 22);
+    canvas.print("rm -rf /handshakes/*");
+    canvas.setCursor(boxX + 8, boxY + 36);
+    canvas.print("This kills the loot.");
+    canvas.setCursor(boxX + 8, boxY + 50);
+    canvas.print("[Y] Do it  [N] Abort");
+}
+
+void CapturesMenu::nukeLoot() {
+    Serial.println("[CAPTURES] Nuking all loot...");
+    
+    if (!SD.exists("/handshakes")) {
+        return;
+    }
+    
+    File dir = SD.open("/handshakes");
+    if (!dir || !dir.isDirectory()) {
+        return;
+    }
+    
+    // Collect filenames first (can't delete while iterating)
+    std::vector<String> files;
+    File file = dir.openNextFile();
+    while (file) {
+        files.push_back(String("/handshakes/") + file.name());
+        file = dir.openNextFile();
+    }
+    dir.close();
+    
+    // Delete all files
+    int deleted = 0;
+    for (const auto& path : files) {
+        if (SD.remove(path)) {
+            deleted++;
+        }
+    }
+    
+    Serial.printf("[CAPTURES] Nuked %d files\n", deleted);
+    
+    // Reset selection
+    selectedIndex = 0;
+    scrollOffset = 0;
+    captures.clear();
 }
 
 String CapturesMenu::getSelectedBSSID() {

@@ -31,11 +31,14 @@ private:
     static uint8_t scrollOffset;
     static bool active;
     static bool keyWasPressed;
+    static bool nukeConfirmActive;  // Nuke confirmation modal
     
     static const uint8_t VISIBLE_ITEMS = 5;
     
     static void scanCaptures();
     static void handleInput();
+    static void drawNukeConfirm(M5Canvas& canvas);
+    static void nukeLoot();
     static String formatTime(time_t t);
     static String extractSSID(const String& filename);
 };
