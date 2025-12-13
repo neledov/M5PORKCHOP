@@ -264,28 +264,28 @@ void CapturesMenu::draw(M5Canvas& canvas) {
 }
 
 void CapturesMenu::drawNukeConfirm(M5Canvas& canvas) {
-    // Modal box dimensions
-    const int boxW = 180;
-    const int boxH = 60;
+    // Modal box dimensions - matches PIGGYBLUES warning style
+    const int boxW = 200;
+    const int boxH = 70;
     const int boxX = (canvas.width() - boxW) / 2;
     const int boxY = (canvas.height() - boxH) / 2 - 5;
     
-    // Draw box with border
-    canvas.fillRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4, COLOR_FG);
-    canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
+    // Black border then pink fill
+    canvas.fillRoundRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4, 8, COLOR_BG);
+    canvas.fillRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_FG);
     
-    canvas.setTextColor(COLOR_FG);
+    // Black text on pink background
+    canvas.setTextColor(COLOR_BG, COLOR_FG);
+    canvas.setTextDatum(top_center);
     canvas.setTextSize(1);
     
+    int centerX = canvas.width() / 2;
+    
     // Hacker edgy message
-    canvas.setCursor(boxX + 8, boxY + 8);
-    canvas.print("SCORCHED EARTH MODE");
-    canvas.setCursor(boxX + 8, boxY + 22);
-    canvas.print("rm -rf /handshakes/*");
-    canvas.setCursor(boxX + 8, boxY + 36);
-    canvas.print("This kills the loot.");
-    canvas.setCursor(boxX + 8, boxY + 50);
-    canvas.print("[Y] Do it  [N] Abort");
+    canvas.drawString("!! SCORCHED EARTH !!", centerX, boxY + 8);
+    canvas.drawString("rm -rf /handshakes/*", centerX, boxY + 22);
+    canvas.drawString("This kills the loot.", centerX, boxY + 36);
+    canvas.drawString("[Y] Do it  [N] Abort", centerX, boxY + 54);
 }
 
 void CapturesMenu::nukeLoot() {

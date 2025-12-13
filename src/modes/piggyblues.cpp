@@ -284,7 +284,8 @@ bool PiggyBluesMode::showWarningDialog() {
         // Clear and redraw
         canvas.fillSprite(COLOR_BG);
         
-        // Pink filled box
+        // Black border then pink fill
+        canvas.fillRoundRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4, 8, COLOR_BG);
         canvas.fillRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_FG);
         
         // Black text on pink background
