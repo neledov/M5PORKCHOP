@@ -49,17 +49,33 @@ void CapturesMenu::scanCaptures() {
     while (file) {
         String name = file.name();
         bool isPCAP = name.endsWith(".pcap");
-        bool isPMKID = name.endsWith(".22000");
+        bool isPMKID = name.endsWith(".22000") && !name.endsWith("_hs.22000");
+        bool isHS22000 = name.endsWith("_hs.22000");
         
-        if (isPCAP || isPMKID) {
+        // Skip PCAP if we have the corresponding _hs.22000 (avoid duplicates)
+        // We prefer showing _hs.22000 because it's hashcat-ready
+        if (isPCAP) {
+            String baseName = name.substring(0, name.indexOf('.'));
+            String hs22kPath = "/handshakes/" + baseName + "_hs.22000";
+            if (SD.exists(hs22kPath)) {
+                file = dir.openNextFile();
+                continue;  // Skip this PCAP, _hs.22000 will be shown instead
+            }
+        }
+        
+        if (isPCAP || isPMKID || isHS22000) {
             CaptureInfo info;
             info.filename = name;
             info.fileSize = file.size();
             info.captureTime = file.getLastWrite();
-            info.isPMKID = isPMKID;  // Track capture type
+            info.isPMKID = isPMKID;  // Only true for actual PMKID files
             
-            // Extract BSSID from filename (e.g., "64EEB7208286.pcap" or "64EEB7208286.22000")
+            // Extract BSSID from filename (e.g., "64EEB7208286.pcap" or "64EEB7208286_hs.22000")
             String baseName = name.substring(0, name.indexOf('.'));
+            // Handle _hs suffix for handshake 22000 files
+            if (baseName.endsWith("_hs")) {
+                baseName = baseName.substring(0, baseName.length() - 3);
+            }
             if (baseName.length() >= 12) {
                 info.bssid = baseName.substring(0, 2) + ":" +
                              baseName.substring(2, 4) + ":" +
