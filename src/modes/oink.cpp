@@ -1032,8 +1032,18 @@ void OinkMode::processEAPOL(const uint8_t* payload, uint16_t len,
                     keyData[i+2] == 0x00 && keyData[i+3] == 0x0f &&
                     keyData[i+4] == 0xac && keyData[i+5] == 0x04) {
                     
-                    // Found PMKID! Extract the 16 bytes
+                    // Found PMKID KDE! Extract the 16 bytes
                     const uint8_t* pmkidData = keyData + i + 6;
+                    
+                    // Check if PMKID is all zeros (some APs send empty PMKID KDE)
+                    bool allZeros = true;
+                    for (int z = 0; z < 16; z++) {
+                        if (pmkidData[z] != 0) { allZeros = false; break; }
+                    }
+                    if (allZeros) {
+                        Serial.printf("[OINK] PMKID KDE found but all zeros (ignored)\n");
+                        break;  // Skip invalid PMKID
+                    }
                     
                     // Check if we already have this PMKID
                     int pmkIdx = findOrCreatePMKID(bssid, station);
@@ -1393,7 +1403,17 @@ bool OinkMode::savePMKID22000(const CapturedPMKID& p, const char* path) {
     // Save PMKID in hashcat 22000 format:
     // WPA*01*PMKID*MAC_AP*MAC_CLIENT*ESSID***MESSAGEPAIR
     
-    File f = SD.open(path, FILE_WRITE);
+    // Safety check: don't save all-zero PMKIDs (invalid/empty)
+    bool allZeros = true;
+    for (int i = 0; i < 16; i++) {
+        if (p.pmkid[i] != 0) { allZeros = false; break; }
+    }
+    if (allZeros) {
+        Serial.printf("[OINK] Skipping save of all-zero PMKID\n");
+        return false;
+    }
+    
+    File f = SD.open(path, FILE_WRITE);;
     if (!f) {
         Serial.printf("[OINK] Failed to create PMKID file: %s\n", path);
         return false;
