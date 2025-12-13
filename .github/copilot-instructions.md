@@ -85,10 +85,33 @@ The avatar has several animation layers that modify the base frame in-place:
 - Nose position: Right-facing `"(X 00)"` nose at [3-4], Left-facing `"(00 X)"` nose at [1-2]
 - Call `Avatar::sniff()` to trigger
 
-**Direction Flip**
-- Random direction change every 5-25 seconds (mood-adjusted: excited = more frequent)
-- 50% chance to face left or right on each flip
-- Facing right is default (toward speech bubble)
+**Look/Walk Animation System**
+Two separate timers control pig behavior when stationary (grass not moving):
+- **LOOK Timer** (8-20s, mood-adjusted): Instant facing direction flip, no position change
+- **WALK Timer** (15-40s, mood-adjusted): 400ms smooth transition to opposite side of screen
+- Both timers disabled when `grassMoving` or `pendingGrassStart` is true
+- `transitionToFacingRight` = direction of travel during walk
+- Walk uses smooth step easing: `3t² - 2t³` over 400ms
+
+**Tail Dynamics**
+- Tail (`z` character) shown when pig faces AWAY from screen center
+- Right side + facing right = tail on left (prefix `z(    )`)
+- Left side + facing left = tail on right (suffix `(    )z`)
+- Facing toward center = no tail shown
+- During walk: tail trails behind movement direction
+- When tail is on left (prefix), body X offset by -18px to keep aligned with head
+
+**Speech Bubble Position**
+- Bubble position based on `Avatar::isOnRightSide()`, NOT `isFacingRight()`
+- Pig on left side → bubble on right; pig on right side → bubble on left
+- Bubble stays fixed when pig looks around (only moves when pig walks)
+
+**Grass Animation**
+- `setGrassMoving(bool moving, bool directionRight = true)` - Controls grass scroll
+- Early-exit optimization: returns immediately if already in requested state
+- Does NOT trigger pig transitions - just starts/stops grass
+- If pig is mid-transition, grass waits via `pendingGrassStart` flag
+- Speed controlled by `setGrassSpeed(uint16_t ms)` - lower = faster
 
 **Mood Peek System**
 - 1.5 second flash of emotional state (ears/expression change)
@@ -576,6 +599,19 @@ delay(random(1, 6));  // 1-5ms jitter
 ```
 **Why**: WIDS systems detect deauth floods by looking for machine-perfect 0ms timing between frames. Random jitter makes traffic look more organic. Applied between forward/reverse frames and between burst iterations.
 
+### OINK Mode - Deauth Rate Explained
+Deauth attacks run in ATTACKING state with 100ms minimum cycle time:
+
+| Clients | Per Cycle | D: Counter Rate |
+|---------|-----------|-----------------|
+| 0 | 1 broadcast | ~10/sec |
+| 1 | 5-8 burst + 1 broadcast | ~50-80/sec |
+| 2+ | N×burst + 1 broadcast | ~100+/sec |
+
+**D: counter** shows forward deauths only (reverse deauths and disassocs not counted).
+**If D: shows ~10/sec**: No clients discovered during LOCKING phase - only broadcast deauth.
+**If D: resets to 0**: State transition to NEXT_TARGET (normal cycling behavior).
+
 ### MAC Randomization
 `WSLBypasser::randomizeMAC()` generates a random locally-administered MAC on mode start:
 ```cpp
@@ -650,6 +686,27 @@ The code explicitly avoids `NimBLEDevice::deinit()`:
 // Just keep BLE initialized but idle
 ```
 **Why**: ESP32-S3 has known issues with BLE reinitialization. Keeping stack alive but idle is more reliable.
+
+### Avatar - setGrassMoving Early Exit
+Per-frame calls to `setGrassMoving()` must be cheap:
+```cpp
+if (moving && (grassMoving || pendingGrassStart)) {
+    return;  // Already moving or pending - don't interrupt
+}
+```
+**Why**: OINK mode calls `setGrassMoving(channelHopping)` every frame in update(). Without early exit, this was causing performance issues (reduced deauth rate). The function now returns immediately if already in the correct state.
+
+### Avatar - No Treadmill Transitions on Per-Frame Calls
+`setGrassMoving()` does NOT trigger pig walk transitions:
+```cpp
+// Just start grass immediately - no transition blocking
+if (transitioning) {
+    pendingGrassStart = true;  // Wait for current transition
+} else {
+    grassMoving = true;  // Start now
+}
+```
+**Why**: The treadmill effect (pig walks to position) is for mode start only, not per-frame sync. Previous implementation triggered transitions every frame when conditions were right, causing deauth rate slowdown.
 
 ### Settings Menu - 32 Character Limit
 Text input enforces length limit:
