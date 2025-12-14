@@ -18,6 +18,7 @@
     3 - Capabilities
         3.1 - OINK Mode
             3.1.1 - DO NO HAM Mode
+            3.1.2 - Stationary Operation Tuning
         3.2 - WARHOG Mode
         3.3 - PIGGY BLUES Mode
         3.4 - HOG ON SPECTRUM Mode
@@ -119,6 +120,71 @@
 
     The piglet goes zen mode with peaceful phrases like "quiet observer"
     and "sniff dont bite". Same pink pig, less criminal energy.
+
+
+------[ 3.1.2 - Stationary Operation Tuning
+
+    Sitting in one spot? Camping a target? Different tactics apply.
+
+    When you're NOT moving, your targets aren't either. You can afford
+    patience. The key insight: discovering clients BEFORE attacking is
+    exponentially more effective than broadcast deauth.
+
+    The math:
+
+        +----------+------------------+-------------------+
+        | Clients  | Targeted Deauths | Broadcast Deauths |
+        | Found    | per 100ms cycle  | per 100ms cycle   |
+        +----------+------------------+-------------------+
+        |    0     |        0         |         1         |
+        |    1     |       5-8        |         1         |
+        |    2     |      10-16       |         1         |
+        |    3     |      15-24       |         1         |
+        +----------+------------------+-------------------+
+
+    See that? One client = 5-8x more deauth pressure. Two clients = 10-16x.
+    Targeted deauth makes clients reconnect. Broadcast is just noise.
+
+    Optimal stationary config:
+
+        +------------+----------+---------+------------------------------+
+        | Setting    | OPTIMAL  | Default | Why                          |
+        +------------+----------+---------+------------------------------+
+        | CH Hop     | 800ms    | 500ms   | Thorough coverage, no rush   |
+        | Lock Time  | 6000ms   | 4000ms  | MORE CLIENTS = MORE PWNS     |
+        | Deauth     | ON       | ON      | Obviously                    |
+        | Rnd MAC    | ON       | ON      | Stealth                      |
+        | DO NO HAM  | OFF      | OFF     | Want those handshakes        |
+        +------------+----------+---------+------------------------------+
+
+    Lock Time is THE lever for stationary ops. During LOCKING state,
+    the piglet sniffs data frames to discover connected clients. More
+    time = more clients found = targeted deauth avalanche.
+
+    State machine timing breakdown:
+
+        SCANNING (5s) --> LOCKING (6s*) --> ATTACKING (up to 15s)
+                              |                    |
+                         sniff data           deauth storm
+                         find clients         catch EAPOL
+                              |                    |
+                              v                    v
+                        clientCount++        handshake.22000
+
+    * With recommended 6000ms Lock Time
+
+    Class buffs that help stationary ops:
+
+        Level 21-25 (R0GU3):  SH4RP TUSKS +1s lock - even more discovery
+        Level 11-15 (PWNER):  H4RD SNOUT +1 burst - harder hits
+        Level 31-35 (WARL0RD): 1R0N TUSKS -1ms jitter - tighter bursts
+
+    TL;DR: Bump Lock Time to 6000ms. Thank us later.
+
+    On the move? DO NO HAM mode is your friend. Fast 150ms hops catch
+    networks as you walk past. No attacks means no legal heat. PMKIDs
+    still get yoinked passively. Save the attack configs for when you're
+    parked. Mobile = passive recon. Stationary = surgical strikes.
 
 
 ----[ 3.2 - WARHOG Mode

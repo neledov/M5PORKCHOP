@@ -1,8 +1,10 @@
 // Piggy Blues Mode - BLE Notification Spam
+// Uses continuous passive scanning with opportunistic payload delivery
 #pragma once
 
 #include <Arduino.h>
 #include <vector>
+#include <NimBLEDevice.h>
 
 // Target device vendor types
 enum class BLEVendor : uint8_t {
@@ -20,6 +22,9 @@ struct BLETarget {
     uint32_t lastSeen;    // Last seen timestamp
 };
 
+// Forward declaration
+class PiggyBluesScanCallbacks;
+
 class PiggyBluesMode {
 public:
     static void init();
@@ -35,6 +40,9 @@ public:
     static uint32_t getSamsungCount() { return samsungCount; }
     static uint32_t getWindowsCount() { return windowsCount; }
     
+    // Vendor identification (public for callback use)
+    static BLEVendor identifyVendor(const uint8_t* mfgData, size_t len);
+    
 private:
     static bool running;
     static bool confirmed;  // User confirmed warning dialog
@@ -43,9 +51,12 @@ private:
     static uint32_t lastBurstTime;
     static uint16_t burstInterval;  // ms between bursts
     
+    // Continuous scan state
+    static bool scanRunning;
+    static bool advertisingNow;  // True while sending advertisement burst
+    
     // Targets
     static std::vector<BLETarget> targets;
-    static uint8_t activeTargets[4];  // Indices of 4 active targets
     static uint8_t activeCount;
     
     // Statistics
@@ -57,13 +68,26 @@ private:
     
     // Internal methods
     static bool showWarningDialog();
-    static void scanForDevices();
-    static void selectTargets();
-    static BLEVendor identifyVendor(const uint8_t* mfgData, size_t len);
+    static void startContinuousScan();
+    static void stopContinuousScan();
+    static void processTargets();
+    static void upsertTarget(const BLETarget& target);
+    static void ageOutStaleTargets();
+    static void selectActiveTargets();
     static void sendAppleJuice();
     static void sendAndroidFastPair();
     static void sendSamsungSpam();
     static void sendWindowsSwiftPair();
     static void sendRandomPayload();
+    
+    // Scan callbacks friend access
+    friend class PiggyBluesScanCallbacks;
+};
+
+// Scan callback class for continuous async scanning
+class PiggyBluesScanCallbacks : public NimBLEScanCallbacks {
+public:
+    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override;
+    void onScanEnd(const NimBLEScanResults& results, int reason) override;
 };
 

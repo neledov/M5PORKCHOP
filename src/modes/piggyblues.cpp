@@ -18,14 +18,14 @@ extern "C" {
 // ============ Timing Constants (defaults, Config::ble() overrides) ============
 static const uint16_t DEFAULT_BURST_INTERVAL_MS = 200;  // Time between advertisement bursts
 static const uint16_t DEFAULT_ADV_DURATION_MS = 100;    // How long each advertisement runs
-static const uint16_t DEFAULT_SCAN_DURATION_MS = 3000;  // Device scan duration
-static const uint16_t DEFAULT_RESCAN_INTERVAL_S = 60;   // Periodic rescan interval (seconds)
-static const uint16_t BLE_STACK_SETTLE_MS = 100;        // Delay for BLE stack to settle
-static const uint16_t BLE_OP_DELAY_MS = 50;             // Short delay between BLE operations
+static const uint16_t BLE_STACK_SETTLE_MS = 50;         // Delay for BLE stack to settle (reduced for async)
+static const uint16_t BLE_OP_DELAY_MS = 20;             // Short delay between BLE operations (reduced)
 static const uint16_t BLE_ADV_MIN_INTERVAL = 32;        // 20ms (32 * 0.625ms)
 static const uint16_t BLE_ADV_MAX_INTERVAL = 64;        // 40ms (64 * 0.625ms)
-static const uint8_t  MAX_ACTIVE_TARGETS = 4;           // Maximum targets to track
+static const uint8_t  MAX_TARGETS = 50;                 // Maximum targets to track
+static const uint8_t  MAX_ACTIVE_TARGETS = 4;           // Maximum active targets for payload selection
 static const uint8_t  MAX_TARGETS_FOR_MOOD = 255;       // Cap for uint8_t mood parameter
+static const uint32_t TARGET_STALE_TIMEOUT_MS = 10000;  // 10 seconds before target considered stale
 
 // UI Constants
 static const uint16_t DIALOG_WIDTH = 200;               // Warning dialog width
@@ -36,22 +36,195 @@ static const uint32_t MOOD_UPDATE_INTERVAL_MS = 3000;   // Mood phrase update in
 // Runtime config values (loaded from Config::ble())
 static uint16_t cfgBurstInterval = DEFAULT_BURST_INTERVAL_MS;
 static uint16_t cfgAdvDuration = DEFAULT_ADV_DURATION_MS;
-static uint16_t cfgScanDuration = DEFAULT_SCAN_DURATION_MS;
-static uint32_t cfgRescanIntervalMs = DEFAULT_RESCAN_INTERVAL_S * 1000;
 
 // Static members
 bool PiggyBluesMode::running = false;
 bool PiggyBluesMode::confirmed = false;
 uint32_t PiggyBluesMode::lastBurstTime = 0;
 uint16_t PiggyBluesMode::burstInterval = 100;
+bool PiggyBluesMode::scanRunning = false;
+bool PiggyBluesMode::advertisingNow = false;
 std::vector<BLETarget> PiggyBluesMode::targets;
-uint8_t PiggyBluesMode::activeTargets[4] = {0};
 uint8_t PiggyBluesMode::activeCount = 0;
 uint32_t PiggyBluesMode::totalPackets = 0;
 uint32_t PiggyBluesMode::appleCount = 0;
 uint32_t PiggyBluesMode::androidCount = 0;
 uint32_t PiggyBluesMode::samsungCount = 0;
 uint32_t PiggyBluesMode::windowsCount = 0;
+
+// ============ Deferred Target System ============
+// Scan callback sets pending target, update() processes in main thread
+// Single-slot pattern (like OINK) - missing a few is acceptable
+static volatile bool pendingTargetAdd = false;
+static volatile bool pendingTargetBusy = false;
+static BLETarget pendingTarget;
+
+// Scan callbacks instance
+static PiggyBluesScanCallbacks scanCallbacks;
+
+// ============ Scan Callback Implementation ============
+// Called from NimBLE task context - must be quick, no heavy processing
+
+void PiggyBluesScanCallbacks::onResult(const NimBLEAdvertisedDevice* device) {
+    // Called for each device found during continuous scan
+    // Use deferred pattern: quick copy, process in main thread
+    
+    if (!device) return;
+    if (pendingTargetBusy) return;  // Main thread is processing
+    if (pendingTargetAdd) return;   // Previous target not yet consumed
+    
+    // Extract info quickly
+    BLETarget target;
+    memcpy(target.addr, device->getAddress().getBase()->val, 6);
+    target.rssi = device->getRSSI();
+    target.lastSeen = millis();
+    
+    // Identify vendor from manufacturer data
+    if (device->haveManufacturerData()) {
+        std::string mfgData = device->getManufacturerData();
+        target.vendor = PiggyBluesMode::identifyVendor((const uint8_t*)mfgData.data(), mfgData.length());
+    } else {
+        target.vendor = BLEVendor::UNKNOWN;
+    }
+    
+    // Queue for processing
+    pendingTarget = target;
+    pendingTargetAdd = true;
+}
+
+void PiggyBluesScanCallbacks::onScanEnd(const NimBLEScanResults& results, int reason) {
+    // Continuous scan shouldn't end unless stopped or error
+    // NimBLE 2.x: stop() does NOT call onScanEnd, so this only fires on unexpected termination
+    // If we're still running and not advertising, restart scan
+    if (PiggyBluesMode::isRunning() && !PiggyBluesMode::advertisingNow) {
+        Serial.printf("[PIGGYBLUES] Scan ended unexpectedly (reason:%d), restarting\n", reason);
+        // Mark scan as stopped so startContinuousScan() will restart it
+        PiggyBluesMode::scanRunning = false;
+        PiggyBluesMode::startContinuousScan();
+    }
+}
+
+// ============ New Continuous Scan Functions ============
+
+void PiggyBluesMode::startContinuousScan() {
+    if (scanRunning) return;
+    
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    if (!pScan) {
+        Serial.println("[PIGGYBLUES] Failed to get scan handle");
+        return;
+    }
+    
+    pScan->setScanCallbacks(&scanCallbacks, false);  // false = don't delete old callbacks
+    pScan->setActiveScan(true);
+    pScan->setInterval(100);
+    pScan->setWindow(99);
+    pScan->setDuplicateFilter(false);  // See all advertisements for RSSI updates
+    
+    // Start continuous non-blocking scan
+    // NimBLE 2.x: start(duration, callback, continuous) 
+    // duration=0 means forever, continuous=true for real-time callbacks
+    if (pScan->start(0, false, true)) {
+        scanRunning = true;
+        Serial.println("[PIGGYBLUES] Continuous scan started");
+    } else {
+        Serial.println("[PIGGYBLUES] Failed to start scan");
+    }
+}
+
+void PiggyBluesMode::stopContinuousScan() {
+    if (!scanRunning) return;
+    
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    if (pScan && pScan->isScanning()) {
+        pScan->stop();
+        delay(BLE_OP_DELAY_MS);
+    }
+    scanRunning = false;
+    Serial.println("[PIGGYBLUES] Continuous scan stopped");
+}
+
+void PiggyBluesMode::processTargets() {
+    // Process any pending target from scan callback (deferred pattern)
+    if (!pendingTargetAdd) return;
+    
+    pendingTargetBusy = true;
+    
+    // Copy pending target
+    BLETarget newTarget = pendingTarget;
+    pendingTargetAdd = false;
+    
+    pendingTargetBusy = false;
+    
+    // Upsert into targets list
+    upsertTarget(newTarget);
+}
+
+void PiggyBluesMode::upsertTarget(const BLETarget& target) {
+    // Find existing or add new
+    for (auto& t : targets) {
+        if (memcmp(t.addr, target.addr, 6) == 0) {
+            // Update existing - refresh RSSI and timestamp
+            t.rssi = target.rssi;
+            t.lastSeen = target.lastSeen;
+            t.vendor = target.vendor;  // May have been UNKNOWN before
+            return;
+        }
+    }
+    
+    // New target - add if room
+    if (targets.size() < MAX_TARGETS) {
+        targets.push_back(target);
+        
+        // Log new device
+        const char* vendorStr = "Unknown";
+        switch(target.vendor) {
+            case BLEVendor::APPLE: vendorStr = "Apple"; break;
+            case BLEVendor::ANDROID: vendorStr = "Android"; break;
+            case BLEVendor::SAMSUNG: vendorStr = "Samsung"; break;
+            case BLEVendor::WINDOWS: vendorStr = "Windows"; break;
+            default: break;
+        }
+        
+        char addrStr[18];
+        snprintf(addrStr, sizeof(addrStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+                 target.addr[0], target.addr[1], target.addr[2],
+                 target.addr[3], target.addr[4], target.addr[5]);
+        Serial.printf("[PIGGYBLUES] New device: %s RSSI:%d Vendor:%s\n", 
+                      addrStr, target.rssi, vendorStr);
+        
+        // Sniff animation is triggered via onPiggyBluesUpdate() when first target acquired
+    }
+}
+
+void PiggyBluesMode::ageOutStaleTargets() {
+    uint32_t now = millis();
+    
+    // Remove targets not seen in TARGET_STALE_TIMEOUT_MS
+    auto it = targets.begin();
+    while (it != targets.end()) {
+        if (now - it->lastSeen > TARGET_STALE_TIMEOUT_MS) {
+            it = targets.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void PiggyBluesMode::selectActiveTargets() {
+    if (targets.empty()) {
+        activeCount = 0;
+        return;
+    }
+    
+    // Sort by RSSI (strongest first = closest)
+    std::sort(targets.begin(), targets.end(), [](const BLETarget& a, const BLETarget& b) {
+        return a.rssi > b.rssi;
+    });
+    
+    // Active count is up to 4 strongest
+    activeCount = min((size_t)4, targets.size());
+}
 
 // AppleJuice payloads - fake AirPods/AppleTV/etc popups
 // Format: length, type (0xFF = manufacturer), Apple company ID (0x004C), device type, ...
@@ -216,8 +389,7 @@ static const size_t SAMSUNG_PAYLOAD_COUNT = sizeof(SAMSUNG_PAYLOADS) / sizeof(SA
 // BLE advertising state
 static NimBLEAdvertising* pAdvertising = nullptr;
 
-// Update timing state (reset in start)
-static uint32_t lastScanTime = 0;
+// Update timing state
 static uint32_t lastMoodUpdateTime = 0;
 
 // Last target info for mood display
@@ -228,12 +400,12 @@ void PiggyBluesMode::init() {
     running = false;
     confirmed = false;
     lastBurstTime = 0;
+    scanRunning = false;
+    advertisingNow = false;
     
     // Load config values
     cfgBurstInterval = Config::ble().burstInterval;
     cfgAdvDuration = Config::ble().advDuration;
-    cfgScanDuration = Config::ble().scanDuration;
-    cfgRescanIntervalMs = (uint32_t)Config::ble().rescanInterval * 1000;
     
     // Validate: advDuration must not exceed burstInterval (prevents perpetual lag)
     if (cfgAdvDuration > cfgBurstInterval) {
@@ -249,14 +421,16 @@ void PiggyBluesMode::init() {
     androidCount = 0;
     samsungCount = 0;
     windowsCount = 0;
-    memset(activeTargets, 0, sizeof(activeTargets));
+    
+    // Reset deferred target state
+    pendingTargetAdd = false;
+    pendingTargetBusy = false;
     
     // Reset timing state
-    lastScanTime = 0;
     lastMoodUpdateTime = 0;
     
-    Serial.printf("[PIGGYBLUES] Initialized (burst:%dms adv:%dms scan:%dms rescan:%ds)\n",
-                  cfgBurstInterval, cfgAdvDuration, cfgScanDuration, Config::ble().rescanInterval);
+    Serial.printf("[PIGGYBLUES] Initialized (burst:%dms adv:%dms continuous-scan)\n",
+                  cfgBurstInterval, cfgAdvDuration);
 }
 
 bool PiggyBluesMode::showWarningDialog() {
@@ -362,17 +536,17 @@ void PiggyBluesMode::start() {
     pAdvertising->setMaxInterval(BLE_ADV_MAX_INTERVAL);  // 40ms
     pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_NON);  // Non-connectable
     
-    // Quick initial scan to find devices (short scan)
-    scanForDevices();
-    
     running = true;
     lastBurstTime = millis();
+    
+    // Start continuous background scanning
+    startContinuousScan();
     
     // Fast moving binary grass for chaos mode
     Avatar::setGrassSpeed(50);  // Fast chaos mode
     Avatar::setGrassMoving(true);
     
-    Serial.println("[PIGGYBLUES] Running - BLE spam active");
+    Serial.println("[PIGGYBLUES] Running - BLE spam active with continuous scan");
 }
 
 void PiggyBluesMode::stop() {
@@ -380,13 +554,12 @@ void PiggyBluesMode::stop() {
     
     Serial.println("[PIGGYBLUES] Stopping...");
     
-    // Stop scan first if running
+    // Stop continuous scan first
+    stopContinuousScan();
+    
+    // Clear scan results
     NimBLEScan* pScan = NimBLEDevice::getScan();
     if (pScan) {
-        if (pScan->isScanning()) {
-            pScan->stop();
-            delay(BLE_OP_DELAY_MS);
-        }
         pScan->clearResults();
     }
     
@@ -420,16 +593,29 @@ void PiggyBluesMode::update() {
     
     uint32_t now = millis();
     
-    // Periodic rescan (uses config interval)
-    if (now - lastScanTime > cfgRescanIntervalMs) {
-        scanForDevices();
-        lastScanTime = now;
-    }
+    // Process any targets discovered by scan callback (deferred pattern)
+    processTargets();
     
-    // Burst attack at configured interval
+    // Age out stale targets (not seen in 10s = out of range)
+    ageOutStaleTargets();
+    
+    // Refresh active target selection (sorted by RSSI)
+    selectActiveTargets();
+    
+    // Opportunistic payload burst - pause scan briefly, advertise, resume
     if (now - lastBurstTime >= burstInterval) {
+        // Stop scan briefly for advertising (use stopContinuousScan for consistent state)
+        stopContinuousScan();
+        advertisingNow = true;
+        
+        // Send payload
         sendRandomPayload();
+        
+        advertisingNow = false;
         lastBurstTime = now;
+        
+        // Resume continuous scan
+        startContinuousScan();
     }
     
     // Update mood occasionally with target info
@@ -450,91 +636,7 @@ void PiggyBluesMode::update() {
     }
 }
 
-void PiggyBluesMode::scanForDevices() {
-    Serial.println("[PIGGYBLUES] Scanning for BLE devices...");
-    
-    // Show scanning indicator (blocking scan will freeze UI)
-    Display::showToast("Probing BLE...");
-    
-    // MUST stop advertising before scanning - they conflict!
-    if (pAdvertising && pAdvertising->isAdvertising()) {
-        pAdvertising->stop();
-        delay(BLE_STACK_SETTLE_MS);  // Give BLE stack time to stop
-    }
-    
-    targets.clear();
-    
-    NimBLEScan* pScan = NimBLEDevice::getScan();
-    pScan->setActiveScan(true);   // Active scan gets more device info
-    pScan->setInterval(100);
-    pScan->setWindow(99);
-    pScan->setDuplicateFilter(false);  // See all advertisements
-    
-    // NimBLE 2.x: For blocking scan, pass duration and blocking=true
-    // The results are returned directly from start()
-    Serial.printf("[PIGGYBLUES] Starting %dms scan...\n", cfgScanDuration);
-    NimBLEScanResults results = pScan->getResults(cfgScanDuration);
-    
-    Serial.printf("[PIGGYBLUES] Scan complete, count: %d\n", results.getCount());
-    
-    for (size_t i = 0; i < results.getCount(); i++) {
-        const NimBLEAdvertisedDevice* device = results.getDevice(i);
-        if (!device) continue;
-        
-        BLETarget target;
-        memcpy(target.addr, device->getAddress().getBase()->val, 6);
-        target.rssi = device->getRSSI();
-        target.lastSeen = millis();
-        
-        // Identify vendor from manufacturer data
-        if (device->haveManufacturerData()) {
-            std::string mfgData = device->getManufacturerData();
-            target.vendor = identifyVendor((const uint8_t*)mfgData.data(), mfgData.length());
-        } else {
-            target.vendor = BLEVendor::UNKNOWN;
-        }
-        
-        // Log each device found
-        const char* vendorStr = "?";
-        switch(target.vendor) {
-            case BLEVendor::APPLE: vendorStr = "Apple"; break;
-            case BLEVendor::ANDROID: vendorStr = "Android"; break;
-            case BLEVendor::SAMSUNG: vendorStr = "Samsung"; break;
-            case BLEVendor::WINDOWS: vendorStr = "Windows"; break;
-            default: vendorStr = "Unknown"; break;
-        }
-        Serial.printf("[PIGGYBLUES] Device: %s RSSI:%d Vendor:%s\n", 
-                      device->getAddress().toString().c_str(), target.rssi, vendorStr);
-        
-        targets.push_back(target);
-    }
-    
-    pScan->clearResults();
-    
-    Serial.printf("[PIGGYBLUES] Found %d devices, selecting targets...\n", (int)targets.size());
-    
-    selectTargets();
-}
-
-void PiggyBluesMode::selectTargets() {
-    if (targets.empty()) {
-        activeCount = 0;
-        return;
-    }
-    
-    // Sort by RSSI (strongest first = closest)
-    std::sort(targets.begin(), targets.end(), [](const BLETarget& a, const BLETarget& b) {
-        return a.rssi > b.rssi;
-    });
-    
-    // Select up to 4 targets, weighted by proximity (top 4 strongest)
-    activeCount = min((size_t)4, targets.size());
-    for (uint8_t i = 0; i < activeCount; i++) {
-        activeTargets[i] = i;
-    }
-    
-    Serial.printf("[PIGGYBLUES] Selected %d active targets\n", activeCount);
-}
+// Old scanForDevices() and selectTargets() removed - replaced by continuous async scanning
 
 BLEVendor PiggyBluesMode::identifyVendor(const uint8_t* mfgData, size_t len) {
     if (!mfgData || len < 2) return BLEVendor::UNKNOWN;
@@ -702,14 +804,15 @@ void PiggyBluesMode::sendWindowsSwiftPair() {
 void PiggyBluesMode::sendRandomPayload() {
     // If we have active targets, weight payloads toward detected vendors
     // Otherwise pure random chaos
+    // NOTE: targets is sorted by RSSI, activeCount = number of "active" targets at front
     
-    if (activeCount > 0) {
-        // Pick a random active target and send payload for their vendor
-        uint8_t targetIdx = activeTargets[random(0, activeCount)];
-        if (targetIdx < targets.size()) {
-            BLEVendor vendor = targets[targetIdx].vendor;
+    if (activeCount > 0 && targets.size() > 0) {
+        // Pick a random target from the active set (first activeCount entries)
+        uint8_t idx = random(0, activeCount);
+        if (idx < targets.size()) {
+            BLEVendor vendor = targets[idx].vendor;
             lastVendorUsed = vendor;
-            lastRssiUsed = targets[targetIdx].rssi;
+            lastRssiUsed = targets[idx].rssi;
             
             switch (vendor) {
                 case BLEVendor::APPLE:

@@ -493,26 +493,79 @@ BLE notification spam mode that sends crafted advertisements to trigger notifica
 - **Samsung** - Buds pairing dialogs
 - **Windows** (SwiftPair) - Bluetooth device notifications
 
-### Architecture
-- Uses NimBLE 2.x for BLE advertising
-- Periodic device scanning to find targets (blocking 3-second scan)
-- Round-robin payload rotation across vendor types
-- Configurable burst interval and target count
+### Architecture: Continuous Passive Scanning
+Uses NimBLE 2.x async scanning for mobile-friendly operation:
+
+**Scan Callback Pattern** (non-blocking):
+```cpp
+class PiggyBluesScanCallbacks : public NimBLEScanCallbacks {
+    void onResult(const NimBLEAdvertisedDevice* device) override {
+        // Quick extraction in callback context
+        // Queue to pendingTarget for main thread processing
+    }
+};
+
+// Continuous scan: duration=0, blocking=false, duplicates=true
+pScan->start(0, false, true);
+```
+
+**Deferred Target Pattern** (same as OINK mode):
+```cpp
+static volatile bool pendingTargetAdd = false;
+static volatile bool pendingTargetBusy = false;
+static BLETarget pendingTarget;
+
+// In callback: queue target if slot free
+// In update(): consume and process target
+```
+
+**Target Lifecycle**:
+1. Scan callback extracts device info → queues to pending slot
+2. `processTargets()` consumes pending → calls `upsertTarget()`
+3. `upsertTarget()` updates existing (refresh lastSeen, RSSI) or adds new
+4. `ageOutStaleTargets()` removes targets not seen in 10 seconds
+5. `selectActiveTargets()` picks top 4 by RSSI for advertising
+
+**Opportunistic Advertising**:
+```cpp
+// Brief scan pause → advertise → resume scan
+stopContinuousScan();
+delay(20);  // Let scan fully stop
+// ... send payloads to active targets ...
+startContinuousScan();  // Resume scanning
+```
 
 ### Key Functions
-- `scanForDevices()` - Blocking BLE scan, shows "Probing BLE..." toast
+- `startContinuousScan()` - Starts non-blocking async scan with callbacks
+- `stopContinuousScan()` - Gracefully stops scan
+- `processTargets()` - Consumes pending target from callback (deferred pattern)
+- `upsertTarget()` - Updates existing or adds new target with RSSI refresh
+- `ageOutStaleTargets()` - Removes targets not seen in 10s (`TARGET_STALE_TIMEOUT_MS`)
+- `selectActiveTargets()` - Sorts by RSSI, selects top `cfgMaxTargets` (default 4)
 - `sendAppleJuice()` / `sendAndroidFastPair()` / `sendSamsungSpam()` / `sendWindowsSwiftPair()` - Vendor-specific payloads
 - `identifyVendor()` - Classifies devices from manufacturer data
 
+### Timing Constants
+```cpp
+const uint32_t BLE_STACK_SETTLE_MS = 50;      // Post-init settle time (reduced)
+const uint32_t TARGET_STALE_TIMEOUT_MS = 10000; // 10s target aging
+```
+
 ### Configuration
-- `cfgScanDuration` - BLE scan duration in ms (default 3000)
-- `cfgBurstInterval` - Time between advertisement bursts
-- `cfgMaxTargets` - Maximum simultaneous targets
+- `cfgBurstInterval` - Time between advertisement bursts (default 200ms)
+- `cfgMaxTargets` - Maximum simultaneous active targets (default 4)
+
+### Mobile-Friendly Improvements
+- **No blocking scans**: Continuous async scanning keeps UI responsive
+- **No toast interruptions**: Removed "Probing BLE..." blocking toast
+- **Fresh RSSI**: Target signal strength updated on every observation
+- **Automatic aging**: Stale targets removed after 10s (device walked away)
+- **Opportunistic bursts**: Advertising only briefly interrupts scanning
 
 ### Safety
 - Warning dialog on first start (user must confirm)
 - BLE stack recovery on advertising failures
-- Proper NimBLE deinit on stop
+- No `NimBLEDevice::deinit()` - ESP32-S3 has reinit issues, keep stack alive but idle
 
 ## HOG ON SPECTRUM Mode Details
 
@@ -853,6 +906,17 @@ The code explicitly avoids `NimBLEDevice::deinit()`:
 // Just keep BLE initialized but idle
 ```
 **Why**: ESP32-S3 has known issues with BLE reinitialization. Keeping stack alive but idle is more reliable.
+
+### PIGGYBLUES Mode - Single-Slot Deferred Targets
+Same pattern as OINK mode's `pendingNetworkAdd`:
+```cpp
+// In scan callback (BLE task context):
+if (!pendingTargetBusy && !pendingTargetAdd) {
+    memcpy(&pendingTarget, &target, sizeof(BLETarget));
+    pendingTargetAdd = true;
+}
+```
+**Why**: Scan callback runs in NimBLE task context. Using a single-slot queue avoids heap allocation in callback. Missing one advertisement is harmless - device will be caught on next advertisement (continuous scanning).
 
 ### Avatar - setGrassMoving Early Exit
 Per-frame calls to `setGrassMoving()` must be cheap:
