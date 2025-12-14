@@ -9,7 +9,7 @@ def pre_build_callback(source, target, env):
     """Generate build info header"""
     build_info = {
         "build_time": datetime.now().isoformat(),
-        "version": env.GetProjectOption("custom_version", "0.1.0")
+        "version": env.GetProjectOption("custom_version", "0.1.1")
     }
     
     info_path = os.path.join(env.get("PROJECT_SRC_DIR"), "build_info.h")
