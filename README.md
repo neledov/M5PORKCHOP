@@ -29,8 +29,6 @@
           from M5's catalog, not for local files
         * If Burn greyed out: close/reopen M5 Burner, reconnect USB
         * COM port not showing? Install CP210x drivers from Silicon Labs
-        * Stuck at "Connecting..."? Hold G0 button while clicking Burn
-        * Still stuck? Try different USB cable (data cable, not charge-only)
 
     ALTERNATIVE - ESP Web Tool (no install):
     
