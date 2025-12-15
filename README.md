@@ -61,6 +61,8 @@
     9 - Code Structure
     10 - Legal sh*t
     11 - Greetz
+    12 - Credits
+    13 - Support The Pig
 
 
 --[ 1 - Introduction
@@ -1017,6 +1019,51 @@
     "The WiFi is free if you're brave enough."
     
     Stay paranoid. Stay curious. Stay out of trouble (mostly).
+
+
+--[ 12 - Credits
+
+    Developed by: 0cto0
+    Team size: 1
+    Pronoun of choice: "we"
+
+    There is no team. There never was a team.
+    "We" is aspirational. "We" is the dream.
+    "We" is what you say when you want to sound
+    like a legitimate operation and not just
+    some guy debugging frame injection at 3am
+    while the pig judges silently from the display.
+
+    The royal "we" - for developers who are
+    definitely not lonely, just... distributed
+    across a single physical instance.
+
+    Contributors welcome. The pig needs friends.
+    The pig's creator needs therapy.
+    Both are accepting pull requests.
+
+
+--[ 13 - Support The Pig
+
+    This project runs on:
+        * Mass quantities of caffeine
+        * Sleep deprivation
+        * The faint hope someone finds this useful
+
+    If PORKCHOP saved you from buying a Flipper,
+    cracked a handshake that made you smile,
+    or just entertained you for five minutes -
+    consider funding the next 3am debug session:
+
+        https://buymeacoffee.com/0ct0
+
+    Your coffee becomes my code.
+    Your code becomes everyone's pig.
+    Circle of life. Hakuna matata. Oink.
+
+    (Not required. Never expected. Always appreciated.
+     The pig oinks louder for supporters.)
+
 
 OINK! OINK!
 
