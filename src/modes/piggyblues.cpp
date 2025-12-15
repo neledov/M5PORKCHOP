@@ -2,6 +2,7 @@
 
 #include "piggyblues.h"
 #include "../core/config.h"
+#include "../core/xp.h"
 #include "../ui/display.h"
 #include "../piglet/mood.h"
 #include "../piglet/avatar.h"
@@ -703,6 +704,7 @@ void PiggyBluesMode::sendAppleJuice() {
     
     totalPackets++;
     appleCount++;
+    XP::addXP(XPEvent::BLE_APPLE);  // +3 XP
 }
 
 void PiggyBluesMode::sendAndroidFastPair() {
@@ -736,6 +738,7 @@ void PiggyBluesMode::sendAndroidFastPair() {
     
     totalPackets++;
     androidCount++;
+    XP::addXP(XPEvent::BLE_ANDROID);  // +2 XP
 }
 
 void PiggyBluesMode::sendSamsungSpam() {
@@ -765,6 +768,7 @@ void PiggyBluesMode::sendSamsungSpam() {
     
     totalPackets++;
     samsungCount++;
+    XP::addXP(XPEvent::BLE_SAMSUNG);  // +2 XP
 }
 
 void PiggyBluesMode::sendWindowsSwiftPair() {
@@ -799,6 +803,7 @@ void PiggyBluesMode::sendWindowsSwiftPair() {
     
     totalPackets++;
     windowsCount++;
+    XP::addXP(XPEvent::BLE_WINDOWS);  // +2 XP
 }
 
 void PiggyBluesMode::sendRandomPayload() {

@@ -677,6 +677,7 @@ void WarhogMode::processScanResults() {
                               gpsData.latitude, gpsData.longitude, gpsData.altitude);
                 savedCount++;
                 geotaggedThisScan++;
+                XP::addXP(XPEvent::WARHOG_LOGGED);  // +2 XP for geotagged network
                 
                 if (enhancedMode) {
                     appendMLEntry(bssidPtr, ssid, features, 0,

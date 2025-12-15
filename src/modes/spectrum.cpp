@@ -448,6 +448,9 @@ void SpectrumMode::onBeacon(const uint8_t* bssid, uint8_t channel, int8_t rssi, 
     
     networks.push_back(net);
     
+    // Award XP for new network discovery (+1 XP, passive observation)
+    XP::addXP(XPEvent::NETWORK_FOUND);
+    
     // Auto-select first network
     if (selectedIndex < 0) {
         selectedIndex = 0;
