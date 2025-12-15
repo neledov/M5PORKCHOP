@@ -1025,10 +1025,6 @@
 
     "The WiFi is free if you're brave enough."
     
-    "With great packet injection comes great legal liability."
-    
-    "I used to be a script kiddie like you, then I took a deauth to the knee."
-
     Stay paranoid. Stay curious. Stay out of trouble (mostly).
 
 OINK! OINK!
