@@ -104,12 +104,12 @@ void SettingsMenu::loadFromConfig() {
         "0 = screen off"
     });
     
-    // Color theme (0-9, see THEMES array in display.h)
+    // Color theme (0-10, see THEMES array in display.h)
     items.push_back({
         "Theme",
         SettingType::VALUE,
         (int)Config::personality().themeIndex,
-        0, 9, 1, "", "",
+        0, 10, 1, "", "",
         "Cycle colors"
     });
     

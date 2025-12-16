@@ -37,6 +37,8 @@ const PorkTheme THEMES[THEME_COUNT] = {
     {"BUBBLEGUM", 0x0000, 0xFD75},  // Black on pink
     {"M1NT",      0x0000, 0x07FF},  // Black on cyan
     {"SUNBURN",   0x0000, 0xFD20},  // Black on amber
+    // Retro modes
+    {"L1TTL3M1XY", 0x0B80, 0x9DE7}, // OG Game Boy LCD
 };
 
 uint16_t getColorFG() {

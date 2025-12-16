@@ -869,6 +869,8 @@
         | M1NT       | Teal on white. Refreshing. Minty.          |
         | SUNBURN    | Orange on white. Eye damage included       |
         +------------+--------------------------------------------+
+        | L1TTL3M1XY | OG Game Boy LCD. 1989 pea-soup nostalgia   |
+        +------------+--------------------------------------------+
 
     Dark themes (top) keep things tactical. Inverted themes (bottom)
     exist for outdoor visibility or psychological warfare on bystanders.

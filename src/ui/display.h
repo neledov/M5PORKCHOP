@@ -21,7 +21,7 @@ struct PorkTheme {
 };
 
 // Theme count and extern declaration (actual array in display.cpp)
-static const uint8_t THEME_COUNT = 10;
+static const uint8_t THEME_COUNT = 11;
 extern const PorkTheme THEMES[THEME_COUNT];
 
 // Dynamic color getters (use these instead of macros)
