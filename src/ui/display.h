@@ -20,22 +20,9 @@ struct PorkTheme {
     uint16_t bg;
 };
 
-// Available themes (10 total: 6 dark + 4 inverted)
-static const PorkTheme THEMES[] = {
-    // Dark modes (colored text on black)
-    {"P1NK",      0xFD75, 0x0000},  // Default piglet pink
-    {"CYB3R",     0x07FF, 0x0000},  // Cyan/tron
-    {"M4TR1X",    0x07E0, 0x0000},  // Green
-    {"AMB3R",     0xFD20, 0x0000},  // Amber terminal
-    {"BL00D",     0xF800, 0x0000},  // Red
-    {"GH0ST",     0xFFFF, 0x0000},  // White mono
-    // Inverted modes (black text on colored bg)
-    {"PAP3R",     0x0000, 0xFFFF},  // Black on white
-    {"BUBBLEGUM", 0x0000, 0xFD75},  // Black on pink
-    {"M1NT",      0x0000, 0x07FF},  // Black on cyan
-    {"SUNBURN",   0x0000, 0xFD20},  // Black on amber
-};
+// Theme count and extern declaration (actual array in display.cpp)
 static const uint8_t THEME_COUNT = 10;
+extern const PorkTheme THEMES[THEME_COUNT];
 
 // Dynamic color getters (use these instead of macros)
 uint16_t getColorFG();

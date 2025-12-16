@@ -23,6 +23,22 @@
 #include "boar_bros_menu.h"
 
 // Theme color getters - read from config
+// Theme definitions (single copy, declared extern in display.h)
+const PorkTheme THEMES[THEME_COUNT] = {
+    // Dark modes (colored text on black)
+    {"P1NK",      0xFD75, 0x0000},  // Default piglet pink
+    {"CYB3R",     0x07FF, 0x0000},  // Cyan/tron
+    {"M4TR1X",    0x07E0, 0x0000},  // Green
+    {"AMB3R",     0xFD20, 0x0000},  // Amber terminal
+    {"BL00D",     0xF800, 0x0000},  // Red
+    {"GH0ST",     0xFFFF, 0x0000},  // White mono
+    // Inverted modes (black text on colored bg)
+    {"PAP3R",     0x0000, 0xFFFF},  // Black on white
+    {"BUBBLEGUM", 0x0000, 0xFD75},  // Black on pink
+    {"M1NT",      0x0000, 0x07FF},  // Black on cyan
+    {"SUNBURN",   0x0000, 0xFD20},  // Black on amber
+};
+
 uint16_t getColorFG() {
     uint8_t idx = Config::personality().themeIndex;
     if (idx >= THEME_COUNT) idx = 0;
