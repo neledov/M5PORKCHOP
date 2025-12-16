@@ -13,9 +13,11 @@
 char WiGLE::lastError[64] = "";
 char WiGLE::statusMessage[64] = "Ready";
 std::vector<String> WiGLE::uploadedFiles;
+bool WiGLE::listLoaded = false;
 
 void WiGLE::init() {
     uploadedFiles.clear();
+    listLoaded = false;
     strcpy(lastError, "");
     strcpy(statusMessage, "Ready");
     loadUploadedList();
@@ -82,9 +84,14 @@ bool WiGLE::isConnected() {
 // ============================================================================
 
 bool WiGLE::loadUploadedList() {
+    if (listLoaded) return true;  // Already loaded, skip SD read
+    
     uploadedFiles.clear();
     
-    if (!SD.exists(UPLOADED_FILE)) return true;
+    if (!SD.exists(UPLOADED_FILE)) {
+        listLoaded = true;
+        return true;  // No file yet, that's OK
+    }
     
     File f = SD.open(UPLOADED_FILE, FILE_READ);
     if (!f) return false;
@@ -98,6 +105,7 @@ bool WiGLE::loadUploadedList() {
     }
     
     f.close();
+    listLoaded = true;
     Serial.printf("[WIGLE] Loaded %d uploaded files from tracking\n", uploadedFiles.size());
     return true;
 }

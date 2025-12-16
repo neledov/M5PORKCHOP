@@ -43,6 +43,7 @@ private:
     
     // Uploaded files tracking
     static std::vector<String> uploadedFiles;
+    static bool listLoaded;  // Guard for lazy loading
     
     // File paths
     static constexpr const char* UPLOADED_FILE = "/wigle_uploaded.txt";
