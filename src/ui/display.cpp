@@ -22,6 +22,19 @@
 #include "swine_stats.h"
 #include "boar_bros_menu.h"
 
+// Theme color getters - read from config
+uint16_t getColorFG() {
+    uint8_t idx = Config::personality().themeIndex;
+    if (idx >= THEME_COUNT) idx = 0;
+    return THEMES[idx].fg;
+}
+
+uint16_t getColorBG() {
+    uint8_t idx = Config::personality().themeIndex;
+    if (idx >= THEME_COUNT) idx = 0;
+    return THEMES[idx].bg;
+}
+
 // Static member initialization
 M5Canvas Display::topBar(&M5.Display);
 M5Canvas Display::mainCanvas(&M5.Display);

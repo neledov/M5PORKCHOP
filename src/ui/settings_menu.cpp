@@ -104,6 +104,15 @@ void SettingsMenu::loadFromConfig() {
         "0 = screen off"
     });
     
+    // Color theme (0-9, see THEMES array in display.h)
+    items.push_back({
+        "Theme",
+        SettingType::VALUE,
+        (int)Config::personality().themeIndex,
+        0, 9, 1, "", "",
+        "Cycle colors"
+    });
+    
     // Channel hop interval
     items.push_back({
         "CH Hop",
@@ -273,19 +282,21 @@ void SettingsMenu::saveToConfig() {
     w.otaSSID = items[0].textValue;
     w.otaPassword = items[1].textValue;
     // items[2] is WPA-SEC display (read-only), items[3] is Load Key File action
-    w.channelHopInterval = items[8].value;
-    w.lockTime = items[9].value;
-    w.enableDeauth = items[10].value == 1;
-    w.randomizeMAC = items[11].value == 1;
-    w.doNoHam = items[12].value == 1;
+    // items[8] is Theme (new)
+    w.channelHopInterval = items[9].value;
+    w.lockTime = items[10].value;
+    w.enableDeauth = items[11].value == 1;
+    w.randomizeMAC = items[12].value == 1;
+    w.doNoHam = items[13].value == 1;
     Config::setWiFi(w);
     
-    // Sound, Brightness, and Dimming
+    // Sound, Brightness, Dimming, and Theme
     auto& p = Config::personality();
     p.soundEnabled = items[4].value == 1;
     p.brightness = items[5].value;
     p.dimTimeout = items[6].value;
     p.dimLevel = items[7].value;
+    p.themeIndex = items[8].value;
     Config::setPersonality(p);
     
     // Apply brightness to display (if not dimmed, reset timer too)
@@ -294,33 +305,33 @@ void SettingsMenu::saveToConfig() {
     
     // GPS settings
     auto& g = Config::gps();
-    g.enabled = items[13].value == 1;
-    g.powerSave = items[14].value == 1;
-    g.updateInterval = items[15].value;  // Scan interval in seconds
+    g.enabled = items[14].value == 1;
+    g.powerSave = items[15].value == 1;
+    g.updateInterval = items[16].value;  // Scan interval in seconds
     
     // Convert baud index to actual baud rate
     static const uint32_t baudRates[] = {9600, 38400, 57600, 115200};
-    g.baudRate = baudRates[items[16].value];
+    g.baudRate = baudRates[items[17].value];
     
     // GPS RX/TX pins (G1/G2 for Grove, G13/G15 for Cap LoRa868)
-    g.rxPin = items[17].value;
-    g.txPin = items[18].value;
+    g.rxPin = items[18].value;
+    g.txPin = items[19].value;
     
-    g.timezoneOffset = items[19].value;
+    g.timezoneOffset = items[20].value;
     Config::setGPS(g);
     
     // ML settings
     auto& m = Config::ml();
-    m.collectionMode = static_cast<MLCollectionMode>(items[20].value);
+    m.collectionMode = static_cast<MLCollectionMode>(items[21].value);
     Config::setML(m);
     
     // SD Logging
-    SDLog::setEnabled(items[21].value == 1);
+    SDLog::setEnabled(items[22].value == 1);
     
     // BLE settings (PIGGY BLUES)
     auto& b = Config::ble();
-    b.burstInterval = items[22].value;
-    b.advDuration = items[23].value;
+    b.burstInterval = items[23].value;
+    b.advDuration = items[24].value;
     Config::setBLE(b);
     
     // Save to file
@@ -593,6 +604,14 @@ void SettingsMenu::draw(M5Canvas& canvas) {
                     valStr = "[" + String(modeLabels[item.value]) + "]";
                 } else {
                     valStr = String(modeLabels[item.value]);
+                }
+            // Special handling for Theme (display theme name instead of index)
+            } else if (item.label == "Theme") {
+                const char* themeName = THEMES[item.value].name;
+                if (isSelected && editing) {
+                    valStr = "[" + String(themeName) + "]";
+                } else {
+                    valStr = String(themeName);
                 }
             } else if (isSelected && editing) {
                 valStr = "[" + String(item.value) + item.suffix + "]";

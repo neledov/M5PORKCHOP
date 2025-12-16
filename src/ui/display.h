@@ -13,13 +13,41 @@ enum class PorkchopMode : uint8_t;
 #define BOTTOM_BAR_H 14
 #define MAIN_H (DISPLAY_H - TOP_BAR_H - BOTTOM_BAR_H)
 
-// Colors - Pink on Black theme (single pink only)
-#define COLOR_BG TFT_BLACK
-#define COLOR_FG 0xFD75  // Piglet pink
-#define COLOR_ACCENT COLOR_FG  // Same pink for everything
-#define COLOR_WARNING COLOR_FG  // Pink only
-#define COLOR_DANGER COLOR_FG   // Pink only
-#define COLOR_SUCCESS COLOR_FG  // Pink only
+// Theme structure
+struct PorkTheme {
+    const char* name;
+    uint16_t fg;
+    uint16_t bg;
+};
+
+// Available themes (10 total: 6 dark + 4 inverted)
+static const PorkTheme THEMES[] = {
+    // Dark modes (colored text on black)
+    {"P1NK",      0xFD75, 0x0000},  // Default piglet pink
+    {"CYB3R",     0x07FF, 0x0000},  // Cyan/tron
+    {"M4TR1X",    0x07E0, 0x0000},  // Green
+    {"AMB3R",     0xFD20, 0x0000},  // Amber terminal
+    {"BL00D",     0xF800, 0x0000},  // Red
+    {"GH0ST",     0xFFFF, 0x0000},  // White mono
+    // Inverted modes (black text on colored bg)
+    {"PAP3R",     0x0000, 0xFFFF},  // Black on white
+    {"BUBBLEGUM", 0x0000, 0xFD75},  // Black on pink
+    {"M1NT",      0x0000, 0x07FF},  // Black on cyan
+    {"SUNBURN",   0x0000, 0xFD20},  // Black on amber
+};
+static const uint8_t THEME_COUNT = 10;
+
+// Dynamic color getters (use these instead of macros)
+uint16_t getColorFG();
+uint16_t getColorBG();
+
+// Compatibility macros - redirect to getters
+#define COLOR_BG getColorBG()
+#define COLOR_FG getColorFG()
+#define COLOR_ACCENT COLOR_FG
+#define COLOR_WARNING COLOR_FG
+#define COLOR_DANGER COLOR_FG
+#define COLOR_SUCCESS COLOR_FG
 
 class Display {
 public:

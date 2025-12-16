@@ -161,13 +161,15 @@ bool Config::loadPersonality() {
     personalityConfig.brightness = doc["brightness"] | 80;
     personalityConfig.dimLevel = doc["dimLevel"] | 20;
     personalityConfig.dimTimeout = doc["dimTimeout"] | 30;
+    personalityConfig.themeIndex = doc["themeIndex"] | 0;
     
-    Serial.printf("[CONFIG] Personality: %s (mood: %d, sound: %s, bright: %d%%, dim: %ds)\n", 
+    Serial.printf("[CONFIG] Personality: %s (mood: %d, sound: %s, bright: %d%%, dim: %ds, theme: %d)\n", 
                   personalityConfig.name, 
                   personalityConfig.mood,
                   personalityConfig.soundEnabled ? "ON" : "OFF",
                   personalityConfig.brightness,
-                  personalityConfig.dimTimeout);
+                  personalityConfig.dimTimeout,
+                  personalityConfig.themeIndex);
     return true;
 }
 
@@ -183,6 +185,7 @@ void Config::savePersonalityToSPIFFS() {
     doc["brightness"] = personalityConfig.brightness;
     doc["dimLevel"] = personalityConfig.dimLevel;
     doc["dimTimeout"] = personalityConfig.dimTimeout;
+    doc["themeIndex"] = personalityConfig.themeIndex;
     
     File file = SPIFFS.open(PERSONALITY_FILE, FILE_WRITE);
     if (file) {
