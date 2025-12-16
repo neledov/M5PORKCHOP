@@ -290,9 +290,32 @@
 
     WiGLE integration is automatic. Every geotagged network gets written
     to both /wardriving/warhog_*.csv (internal format) and
-    /wardriving/warhog_*.wigle.csv (WiGLE v1.6). Take the .wigle.csv
-    files home and upload at wigle.net/upload for instant leaderboard
-    points. API upload coming in a future release.
+    /wardriving/warhog_*.wigle.csv (WiGLE v1.6). 
+
+    Upload options:
+        * Manual: Take .wigle.csv home, upload at wigle.net/upload
+        * PORK TRACKS menu: Upload directly from the device via WiFi
+
+    PORK TRACKS (WiGLE upload menu):
+    
+        Your wardriving conquests deserve global recognition. Open PORK
+        TRACKS from the main menu to see all your WiGLE files. Each shows:
+        
+        * Upload status: [OK] uploaded, [--] not yet
+        * Approximate network count (calculated from file size)
+        * File size for the bandwidth-conscious
+        
+        Controls:
+        * [U] Upload selected file to wigle.net
+        * [R] Refresh file list  
+        * [Enter] Show file details
+        * [`] Exit back to menu
+        
+        First time? Add your WiGLE API credentials:
+        1. Get API token from wigle.net/account (API section)
+        2. Create /wigle_key.txt on SD card: "apiname:apitoken"
+        3. Load via Settings > < Load WiGLE Key >
+        4. Key file auto-deletes after import (security)
 
     No GPS? No coordinates. The pig still logs networks but you get zeros
     in the lat/lon columns. ML training data still useful though - Enhanced
@@ -988,6 +1011,7 @@
     |   |   +-- menu.cpp/h        # Main menu with callbacks
     |   |   +-- settings_menu.cpp/h   # Interactive settings
     |   |   +-- captures_menu.cpp/h   # LOOT menu - browse captured handshakes
+    |   |   +-- wigle_menu.cpp/h  # PORK TRACKS - WiGLE file uploads
     |   |   +-- boar_bros_menu.cpp/h  # BOAR BROS - manage excluded networks
     |   |   +-- achievements_menu.cpp/h # Proof of pwn viewer
     |   |   +-- log_viewer.cpp/h  # View SD card logs

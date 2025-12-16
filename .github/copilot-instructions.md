@@ -109,6 +109,7 @@ Commit messages MUST be in full Phrack mode:
 - `src/ui/menu.cpp/h` - Main menu with callback system
 - `src/ui/settings_menu.cpp/h` - Interactive settings with TOGGLE, VALUE, ACTION, TEXT item types
 - `src/ui/captures_menu.cpp/h` - LOOT menu: captured handshakes/PMKID viewer, WPA-SEC integration, nuke loot feature
+- `src/ui/wigle_menu.cpp/h` - PORK TRACKS menu: WiGLE file browser and uploader
 - `src/ui/boar_bros_menu.cpp/h` - BOAR BROS menu: view/delete excluded networks
 - `src/ui/achievements_menu.cpp/h` - Achievements viewer with unlock descriptions
 - `src/ui/log_viewer.cpp/h` - SD card log file viewer with scrolling
@@ -434,6 +435,26 @@ bool Config::loadWigleKeyFromFile() {
 - "WiGLE Name" - Display only (masked: "abc...")
 - "WiGLE Token" - Display only (masked: "abcd...efgh")
 - "< Load WiGLE Key >" - Import credentials from /wigle_key.txt
+
+### PORK TRACKS Menu (WiGLE Upload UI)
+`src/ui/wigle_menu.cpp/h` - Browse and upload wardriving files.
+
+**Features:**
+- Scans `/wardriving/*.wigle.csv` for WiGLE format files
+- Shows upload status: `[OK]` uploaded, `[--]` local only
+- Estimates network count from file size (~150 bytes per line)
+- Detail view shows filename, network count, file size, status
+
+**Controls:**
+- `[U]` Upload selected file to wigle.net
+- `[R]` Refresh file list
+- `[Enter]` Show file details
+- `[\`]` Exit to menu
+
+**Integration:**
+- `PorkchopMode::WIGLE_MENU` in porkchop.h
+- Menu item "PORK TRACKS" with actionId 13
+- Uses `WiGLE::connect()`, `WiGLE::uploadFile()`, `WiGLE::disconnect()`
 
 ## Build Commands
 
