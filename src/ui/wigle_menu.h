@@ -28,6 +28,7 @@ public:
     static void draw(M5Canvas& canvas);
     static bool isActive() { return active; }
     static size_t getCount() { return files.size(); }
+    static String getSelectedInfo();
     
 private:
     static std::vector<WigleFileInfo> files;
@@ -36,6 +37,7 @@ private:
     static bool active;
     static bool keyWasPressed;
     static bool detailViewActive;   // File detail view
+    static bool nukeConfirmActive;  // Nuke confirmation modal
     static bool connectingWiFi;     // WiFi connection in progress
     static bool uploadingFile;      // Upload in progress
     
@@ -44,7 +46,9 @@ private:
     static void scanFiles();
     static void handleInput();
     static void drawDetailView(M5Canvas& canvas);
+    static void drawNukeConfirm(M5Canvas& canvas);
     static void drawConnecting(M5Canvas& canvas);
     static void uploadSelected();
+    static void nukeTrack();
     static String formatSize(uint32_t bytes);
 };

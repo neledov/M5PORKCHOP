@@ -272,6 +272,14 @@ void Display::drawTopBar() {
             }
             modeColor = COLOR_ACCENT;
             break;
+        case PorkchopMode::WIGLE_MENU:
+            {
+                char buf[24];
+                snprintf(buf, sizeof(buf), "PORK TR4CKS (%d)", WigleMenu::getCount());
+                modeStr = buf;
+            }
+            modeColor = COLOR_ACCENT;
+            break;
     }
     
     // Append mood indicator
@@ -368,6 +376,9 @@ void Display::drawBottomBar() {
     } else if (mode == PorkchopMode::CAPTURES) {
         // CAPTURES: show selected capture's BSSID
         stats = CapturesMenu::getSelectedBSSID();
+    } else if (mode == PorkchopMode::WIGLE_MENU) {
+        // WIGLE_MENU: show selected file info
+        stats = WigleMenu::getSelectedInfo();
     } else if (mode == PorkchopMode::SETTINGS) {
         // SETTINGS: show description of selected item
         stats = SettingsMenu::getSelectedDescription();

@@ -14,6 +14,7 @@ uint8_t WigleMenu::scrollOffset = 0;
 bool WigleMenu::active = false;
 bool WigleMenu::keyWasPressed = false;
 bool WigleMenu::detailViewActive = false;
+bool WigleMenu::nukeConfirmActive = false;
 bool WigleMenu::connectingWiFi = false;
 bool WigleMenu::uploadingFile = false;
 
@@ -28,6 +29,7 @@ void WigleMenu::show() {
     selectedIndex = 0;
     scrollOffset = 0;
     detailViewActive = false;
+    nukeConfirmActive = false;
     connectingWiFi = false;
     uploadingFile = false;
     keyWasPressed = true;  // Ignore enter that brought us here
@@ -116,6 +118,23 @@ void WigleMenu::handleInput() {
         return;
     }
     
+    // Handle nuke confirmation modal
+    if (nukeConfirmActive) {
+        if (M5Cardputer.Keyboard.isKeyPressed('y') || M5Cardputer.Keyboard.isKeyPressed('Y')) {
+            nukeTrack();
+            nukeConfirmActive = false;
+            Display::clearBottomOverlay();
+            return;
+        }
+        if (M5Cardputer.Keyboard.isKeyPressed('n') || M5Cardputer.Keyboard.isKeyPressed('N') ||
+            M5Cardputer.Keyboard.isKeyPressed('`') || M5Cardputer.Keyboard.isKeyPressed(KEY_BACKSPACE)) {
+            nukeConfirmActive = false;  // Cancel
+            Display::clearBottomOverlay();
+            return;
+        }
+        return;  // Ignore other keys when modal active
+    }
+    
     // Handle connecting/uploading states - ignore input
     if (connectingWiFi || uploadingFile) {
         return;
@@ -161,6 +180,14 @@ void WigleMenu::handleInput() {
         scanFiles();
         Display::showToast("Refreshed");
         delay(500);
+    }
+    
+    // D key - nuke selected track
+    if ((M5Cardputer.Keyboard.isKeyPressed('d') || M5Cardputer.Keyboard.isKeyPressed('D')) && !files.empty()) {
+        if (selectedIndex < files.size()) {
+            nukeConfirmActive = true;
+            Display::setBottomOverlay("PERMANENT | NO UNDO");
+        }
     }
 }
 
@@ -229,6 +256,16 @@ String WigleMenu::formatSize(uint32_t bytes) {
     } else {
         return String(bytes / (1024 * 1024)) + "MB";
     }
+}
+
+String WigleMenu::getSelectedInfo() {
+    if (files.empty() || selectedIndex >= files.size()) {
+        return "[U]pload [R]efresh [D]elete";
+    }
+    const WigleFileInfo& file = files[selectedIndex];
+    // Show: ~Xnets Xkb [OK]/[--]
+    String status = (file.status == WigleFileStatus::UPLOADED) ? "[OK]" : "[--]";
+    return "~" + String(file.networkCount) + "nets " + formatSize(file.fileSize) + " " + status;
 }
 
 void WigleMenu::update() {
@@ -312,6 +349,10 @@ void WigleMenu::draw(M5Canvas& canvas) {
     }
     
     // Draw modals on top of list (matching captures_menu pattern)
+    if (nukeConfirmActive) {
+        drawNukeConfirm(canvas);
+    }
+    
     if (detailViewActive) {
         drawDetailView(canvas);
     }
@@ -380,4 +421,80 @@ void WigleMenu::drawConnecting(M5Canvas& canvas) {
     canvas.drawString(WiGLE::getStatus(), boxX + boxW / 2, boxY + 30);
     
     canvas.setTextDatum(top_left);
+}
+
+void WigleMenu::drawNukeConfirm(M5Canvas& canvas) {
+    if (files.empty() || selectedIndex >= files.size()) return;
+    
+    const WigleFileInfo& file = files[selectedIndex];
+    
+    // Modal box dimensions - matches other confirmation dialogs
+    const int boxW = 200;
+    const int boxH = 70;
+    const int boxX = (canvas.width() - boxW) / 2;
+    const int boxY = (canvas.height() - boxH) / 2 - 5;
+    
+    // Black border then pink fill
+    canvas.fillRoundRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4, 8, COLOR_BG);
+    canvas.fillRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_FG);
+    
+    // Black text on pink background
+    canvas.setTextColor(COLOR_BG, COLOR_FG);
+    canvas.setTextDatum(top_center);
+    canvas.setTextSize(1);
+    
+    int centerX = canvas.width() / 2;
+    
+    // Truncate filename for display
+    String displayName = file.filename;
+    if (displayName.length() > 22) {
+        displayName = displayName.substring(0, 19) + "...";
+    }
+    
+    canvas.drawString("!! NUKE THE TRACK !!", centerX, boxY + 8);
+    canvas.drawString(displayName, centerX, boxY + 24);
+    canvas.drawString("This kills the file.", centerX, boxY + 38);
+    canvas.drawString("[Y] Do it  [N] Abort", centerX, boxY + 54);
+    
+    canvas.setTextDatum(top_left);
+}
+
+void WigleMenu::nukeTrack() {
+    if (files.empty() || selectedIndex >= files.size()) return;
+    
+    const WigleFileInfo& file = files[selectedIndex];
+    
+    Serial.printf("[WIGLE_MENU] Nuking track: %s\n", file.fullPath.c_str());
+    
+    // Delete the .wigle.csv file
+    bool deleted = SD.remove(file.fullPath);
+    
+    // Also delete matching internal CSV if exists (same name without .wigle)
+    String internalPath = file.fullPath;
+    internalPath.replace(".wigle.csv", ".csv");
+    if (SD.exists(internalPath)) {
+        SD.remove(internalPath);
+        Serial.printf("[WIGLE_MENU] Also nuked: %s\n", internalPath.c_str());
+    }
+    
+    // Remove from uploaded tracking if present
+    WiGLE::removeFromUploaded(file.fullPath.c_str());
+    
+    if (deleted) {
+        Display::showToast("Track nuked!");
+    } else {
+        Display::showToast("Nuke failed");
+    }
+    delay(500);
+    
+    // Refresh the file list
+    scanFiles();
+    
+    // Adjust selection if needed
+    if (selectedIndex >= files.size() && selectedIndex > 0) {
+        selectedIndex = files.size() - 1;
+    }
+    if (scrollOffset > selectedIndex) {
+        scrollOffset = selectedIndex;
+    }
 }

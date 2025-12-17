@@ -145,6 +145,18 @@ void WiGLE::markUploaded(const char* filename) {
     saveUploadedList();
 }
 
+void WiGLE::removeFromUploaded(const char* filename) {
+    String name = getFilenameFromPath(filename);
+    for (auto it = uploadedFiles.begin(); it != uploadedFiles.end(); ++it) {
+        if (*it == name) {
+            uploadedFiles.erase(it);
+            saveUploadedList();
+            Serial.printf("[WIGLE] Removed from uploaded tracking: %s\n", name.c_str());
+            return;
+        }
+    }
+}
+
 uint16_t WiGLE::getUploadedCount() {
     loadUploadedList();
     return uploadedFiles.size();

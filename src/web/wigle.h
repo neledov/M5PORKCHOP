@@ -26,9 +26,10 @@ public:
     static bool uploadFile(const char* csvPath);  // POST WiGLE CSV file
     
     // Upload tracking
-    static bool isUploaded(const char* filename);   // Check if already uploaded
-    static void markUploaded(const char* filename); // Mark as uploaded
-    static uint16_t getUploadedCount();             // Total uploads tracked
+    static bool isUploaded(const char* filename);     // Check if already uploaded
+    static void markUploaded(const char* filename);   // Mark as uploaded
+    static void removeFromUploaded(const char* filename); // Remove from tracking
+    static uint16_t getUploadedCount();               // Total uploads tracked
     
     // Status
     static const char* getLastError();
