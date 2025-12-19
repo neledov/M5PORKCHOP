@@ -431,16 +431,16 @@ void Display::drawBottomBar() {
         } else if (passive) {
             // DO NO HAM: no D: counter (we don't deauth)
             if (broCount > 0) {
-                snprintf(buf, sizeof(buf), "N:%3d HS:%d CH:%2d BRO:%d DOIN NO HAM", netCount, hsCount, channel, broCount);
+                snprintf(buf, sizeof(buf), "N:%03d HS:%d CH:%02d BRO:%d DOIN NO HAM", netCount, hsCount, channel, broCount);
             } else {
-                snprintf(buf, sizeof(buf), "N:%3d HS:%d CH:%2d DOIN NO HAM", netCount, hsCount, channel);
+                snprintf(buf, sizeof(buf), "N:%03d HS:%d CH:%02d DOIN NO HAM", netCount, hsCount, channel);
             }
         } else {
             // Attack mode: show D: counter
             if (broCount > 0) {
-                snprintf(buf, sizeof(buf), "N:%3d HS:%d D:%lu CH:%2d BRO:%d", netCount, hsCount, deauthCount, channel, broCount);
+                snprintf(buf, sizeof(buf), "N:%03d HS:%d D:%lu CH:%02d BRO:%d", netCount, hsCount, deauthCount, channel, broCount);
             } else {
-                snprintf(buf, sizeof(buf), "N:%3d HS:%d D:%lu CH:%2d", netCount, hsCount, deauthCount, channel);
+                snprintf(buf, sizeof(buf), "N:%03d HS:%d D:%lu CH:%02d", netCount, hsCount, deauthCount, channel);
             }
         }
         stats = String(buf);
@@ -841,7 +841,7 @@ void Display::drawModeInfo(M5Canvas& canvas, PorkchopMode mode) {
         uint16_t hsCount = OinkMode::getCompleteHandshakeCount();
         uint32_t deauthCnt = OinkMode::getDeauthCount();
         char stats[48];
-        snprintf(stats, sizeof(stats), "N:%3d HS:%d D:%lu [BKSP]=STOP", 
+        snprintf(stats, sizeof(stats), "N:%03d HS:%d D:%lu [BKSP]=STOP", 
                  (int)networks.size(), hsCount, deauthCnt);
         canvas.drawString(stats, 2, MAIN_H - 12);
     } else if (mode == PorkchopMode::WARHOG_MODE) {
