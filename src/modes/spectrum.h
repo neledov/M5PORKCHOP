@@ -96,10 +96,15 @@ private:
     static uint8_t deauthsThisMonitor;       // Deauths since entering monitor
     static uint32_t firstDeauthTime;         // Time of first deauth (for QUICK_DRAW)
     
+    // Client detail popup state
+    static bool clientDetailActive;          // Detail popup visible
+    static uint8_t detailClientMAC[6];       // MAC of client being viewed (close if changes)
+    
     static void handleInput();
     static void handleClientMonitorInput();  // Input when monitoring
     static void drawSpectrum(M5Canvas& canvas);
     static void drawClientOverlay(M5Canvas& canvas);  // Client list overlay
+    static void drawClientDetail(M5Canvas& canvas);   // Client detail popup
     static void drawGaussianLobe(M5Canvas& canvas, float centerFreqMHz, int8_t rssi, bool filled);
     static void drawAxis(M5Canvas& canvas);
     static void drawChannelMarkers(M5Canvas& canvas);

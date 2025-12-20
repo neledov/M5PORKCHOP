@@ -71,6 +71,10 @@ uint32_t SpectrumMode::clientMonitorEntryTime = 0;
 uint8_t SpectrumMode::deauthsThisMonitor = 0;
 uint32_t SpectrumMode::firstDeauthTime = 0;
 
+// Client detail popup state
+bool SpectrumMode::clientDetailActive = false;
+uint8_t SpectrumMode::detailClientMAC[6] = {0};  // MAC of client being viewed
+
 void SpectrumMode::init() {
     networks.clear();
     networks.shrink_to_fit();  // Release vector capacity
@@ -95,6 +99,7 @@ void SpectrumMode::init() {
     lastClientPrune = 0;
     clientsDiscoveredThisSession = 0;
     pendingClientBeep = false;
+    clientDetailActive = false;
 }
 
 void SpectrumMode::start() {
@@ -310,6 +315,12 @@ void SpectrumMode::handleClientMonitorInput() {
     
     Display::resetDimTimer();
     
+    // If detail popup is active, any key closes it
+    if (clientDetailActive) {
+        clientDetailActive = false;
+        return;
+    }
+    
     // Exit keys (backtick or backspace)
     if (M5Cardputer.Keyboard.isKeyPressed('`') || 
         M5Cardputer.Keyboard.isKeyPressed(KEY_BACKSPACE)) {
@@ -354,6 +365,16 @@ void SpectrumMode::handleClientMonitorInput() {
             if (selectedClientIndex >= clientScrollOffset + VISIBLE_CLIENTS) {
                 clientScrollOffset = selectedClientIndex - VISIBLE_CLIENTS + 1;
             }
+        }
+        
+        // D key: show client detail popup
+        if (M5Cardputer.Keyboard.isKeyPressed('d') || M5Cardputer.Keyboard.isKeyPressed('D')) {
+            if (selectedClientIndex >= 0 && selectedClientIndex < clientCount) {
+                // Store MAC of client we're viewing - close popup if this client disappears
+                memcpy(detailClientMAC, networks[monitoredNetworkIndex].clients[selectedClientIndex].mac, 6);
+                clientDetailActive = true;
+            }
+            return;
         }
         
         // Enter: deauth selected client [P14]
@@ -566,6 +587,90 @@ void SpectrumMode::drawClientOverlay(M5Canvas& canvas) {
         canvas.setTextDatum(bottom_right);
         canvas.drawString("v", 236, 82);  // More below
     }
+    
+    // Draw client detail popup if active
+    if (clientDetailActive) {
+        drawClientDetail(canvas);
+    }
+}
+
+// Draw client detail popup - modal overlay with full client info
+void SpectrumMode::drawClientDetail(M5Canvas& canvas) {
+    // Bounds validation - close popup if client no longer exists
+    if (monitoredNetworkIndex < 0 || 
+        monitoredNetworkIndex >= (int)networks.size()) {
+        clientDetailActive = false;
+        return;
+    }
+    
+    const SpectrumNetwork& net = networks[monitoredNetworkIndex];
+    
+    if (selectedClientIndex < 0 || selectedClientIndex >= net.clientCount) {
+        clientDetailActive = false;
+        return;
+    }
+    
+    const SpectrumClient& client = net.clients[selectedClientIndex];
+    
+    // Close popup if viewed client changed (was pruned, index now points to different client)
+    if (memcmp(client.mac, detailClientMAC, 6) != 0) {
+        clientDetailActive = false;
+        return;
+    }
+    
+    // Modal box dimensions - medium size per design spec
+    const int boxW = 200;
+    const int boxH = 75;
+    const int boxX = (canvas.width() - boxW) / 2;
+    const int boxY = (canvas.height() - boxH) / 2 - 5;
+    
+    // Black border then pink fill (standard popup pattern)
+    canvas.fillRoundRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4, 8, COLOR_BG);
+    canvas.fillRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_FG);
+    
+    // Black text on pink background
+    canvas.setTextColor(COLOR_BG, COLOR_FG);
+    canvas.setTextDatum(top_center);
+    canvas.setTextSize(1);
+    
+    int centerX = canvas.width() / 2;
+    
+    // Line 1: Full MAC address
+    char macStr[18];
+    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+        client.mac[0], client.mac[1], client.mac[2],
+        client.mac[3], client.mac[4], client.mac[5]);
+    canvas.drawString(macStr, centerX, boxY + 6);
+    
+    // Line 2: Vendor name (uppercase, truncated if needed)
+    const char* vendorRaw = client.vendor ? client.vendor : "Unknown";
+    char vendorUpper[25];
+    strncpy(vendorUpper, vendorRaw, 24);
+    vendorUpper[24] = '\0';
+    for (int i = 0; vendorUpper[i]; i++) vendorUpper[i] = toupper(vendorUpper[i]);
+    canvas.drawString(vendorUpper, centerX, boxY + 20);
+    
+    // Line 3: RSSI and age
+    uint32_t age = (millis() - client.lastSeen) / 1000;
+    char statsStr[28];
+    snprintf(statsStr, sizeof(statsStr), "RSSI: %ddB  AGE: %luS", client.rssi, age);
+    canvas.drawString(statsStr, centerX, boxY + 38);
+    
+    // Line 4: Position relative to AP
+    int delta = client.rssi - net.rssi;
+    const char* position;
+    if (delta > 10) position = "CLOSER TO YOU THAN AP";
+    else if (delta > 3) position = "SLIGHTLY CLOSER";
+    else if (delta < -10) position = "FAR FROM YOU";
+    else if (delta < -3) position = "SLIGHTLY FARTHER";
+    else position = "SAME DISTANCE AS AP";
+    canvas.drawString(position, centerX, boxY + 52);
+    
+    // Line 5: Dismiss hint
+    canvas.drawString("[ANY KEY] CLOSE", centerX, boxY + 64);
+    
+    // Reset datum
+    canvas.setTextDatum(top_left);
 }
 
 void SpectrumMode::drawSpectrum(M5Canvas& canvas) {
@@ -1142,6 +1247,9 @@ void SpectrumMode::exitClientMonitor() {
     // Reset indices
     monitoredNetworkIndex = -1;
     memset(monitoredBSSID, 0, 6);
+    
+    // Reset popup state
+    clientDetailActive = false;
     
     Serial.println("[SPECTRUM] Exited client monitor");
     
