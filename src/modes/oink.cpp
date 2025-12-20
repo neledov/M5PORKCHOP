@@ -70,6 +70,14 @@ static volatile bool pendingPMKIDCreateBusy = false;
 static volatile bool pendingPMKIDCreateReady = false;
 static PendingPMKIDCreate pendingPMKIDCreate;
 
+// PMKID dwell mechanism - pause hopping to catch beacon for SSID
+// When PMKID is captured without SSID, we need to wait for the beacon
+// Beacons arrive every ~100ms, so 300ms dwell catches 2-3 beacon intervals
+static volatile bool pmkidNeedsSSID = false;
+static uint8_t pmkidDwellBSSID[6] = {0};
+static uint32_t pmkidDwellStartTime = 0;
+static const uint32_t PMKID_DWELL_TIME_MS = 300;
+
 // Pending log messages (simple ring buffer for debug output)
 #define PENDING_LOG_SIZE 4
 #define PENDING_LOG_LEN 96
@@ -193,6 +201,11 @@ void OinkMode::init() {
     pendingPMKIDCapture = false;
     pendingLogHead = 0;
     pendingLogTail = 0;
+    
+    // Reset PMKID dwell mechanism
+    pmkidNeedsSSID = false;
+    memset(pmkidDwellBSSID, 0, 6);
+    pmkidDwellStartTime = 0;
     
     // Reset bored state tracking
     consecutiveFailedScans = 0;
@@ -352,6 +365,22 @@ void OinkMode::update() {
         // Check heap before allocating - skip if memory critically low
         if (ESP.getFreeHeap() >= HEAP_MIN_THRESHOLD) {
             networks.push_back(pendingNetwork);
+            
+            // Backfill SSID into any PMKID waiting for this network
+            if (pendingNetwork.ssid[0] != 0) {
+                for (auto& p : pmkids) {
+                    if (p.ssid[0] == 0 && memcmp(p.bssid, pendingNetwork.bssid, 6) == 0) {
+                        strncpy(p.ssid, pendingNetwork.ssid, 32);
+                        p.ssid[32] = 0;
+                        Serial.printf("[OINK] PMKID SSID backfill (deferred): %s\n", p.ssid);
+                        // Clear dwell flag if this was the BSSID we were waiting for
+                        if (pmkidNeedsSSID && memcmp(pmkidDwellBSSID, pendingNetwork.bssid, 6) == 0) {
+                            pmkidNeedsSSID = false;
+                            Serial.println("[OINK] PMKID dwell complete - beacon caught");
+                        }
+                    }
+                }
+            }
         }
         pendingNetworkAdd = false;
     }
@@ -503,8 +532,21 @@ void OinkMode::update() {
                 bool doNoHam = Config::wifi().doNoHam;
                 uint16_t hopInterval = doNoHam ? DNH_HOP_INTERVAL : SwineStats::getChannelHopInterval();
                 
+                // Check if dwelling on channel to catch beacon for PMKID SSID
+                bool dwelling = false;
+                if (pmkidNeedsSSID && doNoHam) {
+                    if (now - pmkidDwellStartTime < PMKID_DWELL_TIME_MS) {
+                        dwelling = true;  // Stay on channel for beacon
+                    } else {
+                        // Dwell timeout - couldn't catch beacon, resume hopping
+                        pmkidNeedsSSID = false;
+                        Serial.println("[OINK] PMKID dwell timeout - beacon not caught");
+                    }
+                }
+                
                 // Channel hopping during scan (buff-modified interval, or fast DNH interval)
-                if (now - lastHopTime > hopInterval) {
+                // Skip hop if dwelling to catch a beacon
+                if (!dwelling && now - lastHopTime > hopInterval) {
                     hopChannel();
                     lastHopTime = now;
                 }
@@ -1146,6 +1188,23 @@ void OinkMode::processBeacon(const uint8_t* payload, uint16_t len, int8_t rssi) 
         networks[idx].lastSeen = millis();
         networks[idx].beaconCount++;
         networks[idx].hasPMF = hasPMF;  // Update PMF status
+        
+        // Clear dwell flag if we got beacon for network we were waiting for
+        // Also backfill SSID into any matching PMKID
+        if (pmkidNeedsSSID && memcmp(bssid, pmkidDwellBSSID, 6) == 0) {
+            if (networks[idx].ssid[0] != 0) {
+                // Network already has SSID - backfill into PMKID
+                for (auto& p : pmkids) {
+                    if (p.ssid[0] == 0 && memcmp(p.bssid, bssid, 6) == 0) {
+                        strncpy(p.ssid, networks[idx].ssid, 32);
+                        p.ssid[32] = 0;
+                        queueLog("[OINK] PMKID SSID backfill (beacon): %s", p.ssid);
+                    }
+                }
+            }
+            pmkidNeedsSSID = false;
+            queueLog("[OINK] PMKID dwell complete - beacon matched");
+        }
     }
 }
 
@@ -1383,7 +1442,13 @@ void OinkMode::processEAPOL(const uint8_t* payload, uint16_t len,
                                 strncpy(pendingPMKIDCreate.ssid, networks[netIdx].ssid, 32);
                                 pendingPMKIDCreate.ssid[32] = 0;
                             } else {
+                                // No SSID yet - trigger dwell to catch beacon
+                                // millis() is safe to call from WiFi callback context
                                 pendingPMKIDCreate.ssid[0] = 0;
+                                pmkidNeedsSSID = true;
+                                memcpy(pmkidDwellBSSID, bssid, 6);
+                                pmkidDwellStartTime = millis();
+                                queueLog("[OINK] PMKID needs SSID - dwelling for beacon");
                             }
                             pendingPMKIDCreateReady = true;
                             
@@ -1984,6 +2049,22 @@ bool OinkMode::saveAllPMKIDs() {
     
     bool success = true;
     for (auto& p : pmkids) {
+        // SSID backfill: In passive mode (DO NO HAM), M1 frames may arrive before
+        // beacon, so SSID lookup fails at capture time. Try again before saving.
+        // SSID is REQUIRED for PMKID cracking - it's the salt for PBKDF2(passphrase, SSID).
+        if (p.ssid[0] == 0) {
+            for (const auto& net : networks) {
+                if (memcmp(net.bssid, p.bssid, 6) == 0 && net.ssid[0] != 0) {
+                    strncpy(p.ssid, net.ssid, 32);
+                    p.ssid[32] = 0;
+                    Serial.printf("[OINK] PMKID SSID backfill: %s\n", p.ssid);
+                    break;
+                }
+            }
+        }
+        
+        // SSID is required - PMK = PBKDF2(passphrase, SSID), so no SSID = uncrackable
+        // Keep in memory for later retry if SSID is found
         if (!p.saved && p.ssid[0] != 0) {
             // Use BSSID-based filename in /handshakes/ (same as handshakes, but .22000 extension)
             char filename[64];
