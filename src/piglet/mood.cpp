@@ -483,37 +483,37 @@ const char* PHRASES_WARHOG_FOUND[] = {
     "position marked sir"
 };
 
-// Piggy Blues BLE spam phrases - BLE attack style
+// Piggy Blues BLE spam phrases - RuPaul drag queen eleganza
 // All phrases use %s=vendor and %d=rssi
 const char* PHRASES_PIGGYBLUES_TARGETED[] = {
-    "%s breached @ %ddB",
-    "bluesnarf %s [%ddB]",
-    "%s notif bombed %ddB",
-    "gatt attack %s %ddB",
-    "%s ble rekt @ %ddB",
-    "2.4ghz assault %s %ddB",
-    "uuid storm %s %ddB",
-    "%s payload sent %ddB"
+    "sashay away %s darling [%ddB]",
+    "serving %s realness @ %ddB",
+    "%s honey ur notifications r showing %ddB",
+    "snatch ur %s crown sweetie %ddB",
+    "%s bout to gag @ %ddB mawma",
+    "death drop on %s [%ddB]",
+    "%s shantay u stay notified %ddB",
+    "reading %s for filth @ %ddB"
 };
 
-// Status phrases showing scan results - all use %d/%d format
+// Status phrases showing scan results - drag queen eleganza format
 const char* PHRASES_PIGGYBLUES_STATUS[] = {
-    "%d marks [%d scanned]",
-    "spammin %d/%d devices",
-    "%d pwned, %d seen",
-    "notif storm: %d of %d",
-    "%d active targets [%d]"
+    "serving looks to %d of %d queens",
+    "%d slayed [%d clocked]",
+    "category is: %d/%d gagged",
+    "werking %d phones hunty [%d total]",
+    "%d devices living 4 this drama [%d]"
 };
 
-// Idle/scanning phrases - BLE chaos style
+// Idle/scanning phrases - RuPaul drag queen runway ready
 const char* PHRASES_PIGGYBLUES_IDLE[] = {
-    "ble chaos pending",
-    "advert storm ready",
-    "uuid payload loaded",
-    "gatt attack standby",
-    "notif nuke armed",
-    "2.4ghz spectrum owned",
-    "bluejack mode primed"
+    "bout to serve bluetooth eleganza",
+    "hair is laid notifications r paid",
+    "warming up the runway darling",
+    "tucked n ready 4 the show",
+    "glitter cannon loaded hunty",
+    "bout to snatch ALL the airpods",
+    "if u cant love urself... spam em"
 };
 
 // Deauth success - 802.11 hacker rap style
