@@ -428,6 +428,9 @@ void OinkMode::update() {
         Display::showLoot(lastPwnedSSID);  // Show PWNED banner in top bar
         SDLog::log("OINK", "PMKID captured: %s", pendingPMKIDSSID);
         pendingPMKIDCapture = false;
+        
+        // BUG FIX: Trigger auto-save for PMKID (was missing, causing beeps but no file)
+        pendingAutoSave = true;
     }
     
     // Process pending auto-save (callback set flag, we do SD I/O here)
