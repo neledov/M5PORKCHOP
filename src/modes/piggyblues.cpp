@@ -71,6 +71,7 @@ void PiggyBluesScanCallbacks::onResult(const NimBLEAdvertisedDevice* device) {
     // Use deferred pattern: quick copy, process in main thread
     
     if (!device) return;
+    if (PiggyBluesMode::advertisingNow) return;  // Skip during advertising (RF interference)
     if (pendingTargetBusy) return;  // Main thread is processing
     if (pendingTargetAdd) return;   // Previous target not yet consumed
     
