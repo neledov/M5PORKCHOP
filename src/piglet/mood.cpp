@@ -527,8 +527,8 @@ const char* PHRASES_DEAUTH_SUCCESS[] = {
     "%s absolute muppet"
 };
 
-// PMKID captured - clientless hash extraction style
-const char* PHRASES_PMKID_CAPTURED[] = {
+// PMKID captured - OINK mode (British hooligan)
+const char* PHRASES_PMKID_OINK[] = {
     "pmkid nicked proper",
     "clientless hash bruv",
     "rsn ie proper pwned",
@@ -538,6 +538,19 @@ const char* PHRASES_PMKID_CAPTURED[] = {
     "no client needed yeah",
     "pmkid extracted proper",
     "silent pwn mode chuffed"
+};
+
+// PMKID captured - DNH mode (Rasta blessed - rare ghost capture)
+const char* PHRASES_PMKID_CD[] = {
+    "pmkid blessed ya",
+    "jah guide di hash",
+    "ghostly capture irie",
+    "silent loot respect",
+    "no attack needed seen",
+    "hashcat blessed bredren",
+    "natural extraction blessed",
+    "pmkid inna air ya",
+    "peaceful pwn irie"
 };
 
 // Rare phrases - 5% chance to appear for surprise variety
@@ -802,12 +815,26 @@ void Mood::onPMKIDCaptured(const char* apName) {
         XP::addXP(XPEvent::LOW_BATTERY_CAPTURE);
     }
     
-    // Phase 6: PMKID gets special 3-phrase chain
+    // Phase 6: PMKID gets special 3-phrase chain (mode-specific personality)
     char buf1[48], buf2[48], buf3[48];
     
-    // First phrase - PMKID celebration
-    int idx = pickPhraseIdx(PhraseCategory::PMKID, sizeof(PHRASES_PMKID_CAPTURED) / sizeof(PHRASES_PMKID_CAPTURED[0]));
-    strncpy(buf1, PHRASES_PMKID_CAPTURED[idx], sizeof(buf1) - 1);
+    // First phrase - PMKID celebration (personality-aware)
+    PorkchopMode mode = porkchop.getMode();
+    const char** pmkidPhrases;
+    int pmkidCount;
+    
+    if (mode == PorkchopMode::DNH_MODE) {
+        // C.D. caught a ghost PMKID - very rare!
+        pmkidPhrases = PHRASES_PMKID_CD;
+        pmkidCount = sizeof(PHRASES_PMKID_CD) / sizeof(PHRASES_PMKID_CD[0]);
+    } else {
+        // Dr Oinker in OINK mode
+        pmkidPhrases = PHRASES_PMKID_OINK;
+        pmkidCount = sizeof(PHRASES_PMKID_OINK) / sizeof(PHRASES_PMKID_OINK[0]);
+    }
+    
+    int idx = pickPhraseIdx(PhraseCategory::PMKID, pmkidCount);
+    strncpy(buf1, pmkidPhrases[idx], sizeof(buf1) - 1);
     buf1[sizeof(buf1) - 1] = '\0';
     
     // Second phrase - explanation
@@ -1484,16 +1511,16 @@ const char* PHRASES_PASSIVE_RECON[] = {
     "stealth sweep respect"
 };
 
-// Deauth/digging phrases - 802.11 hacker rap style
+// Deauth/attack phrases - Dr Oinker style (OINK mode only)
 const char* PHRASES_DEAUTH[] = {
-    "droppin frames on %s",
-    "802.11 slayin %s",
-    "disassoc %s hard",
-    "mgmt frame rain %s",
-    "reason code 7 %s",
-    "snout checkin %s",
-    "kickin %s off turf",
-    "deauth flow on %s"
+    "proper bangin %s mate",
+    "frame storm on %s bruv",
+    "disassoc %s innit",
+    "mullerin %s proper",
+    "reason code 7 %s yeah",
+    "%s gettin booted mate",
+    "kickin %s off me turf",
+    "%s binned bruv lol"
 };
 
 // Idle phrases - mode hints and hacker personality

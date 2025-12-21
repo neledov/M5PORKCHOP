@@ -468,21 +468,22 @@ void Porkchop::handleInput() {
         bWasPressed = bPressed;
         
         // D key - switch to DO NO HAM mode (seamless mode switch)
-        static bool dWasPressed = false;
+        static bool dWasPressed_oink = false;
         bool dPressed = M5Cardputer.Keyboard.isKeyPressed('d') || M5Cardputer.Keyboard.isKeyPressed('D');
-        if (dPressed && !dWasPressed) {
+        if (dPressed && !dWasPressed_oink) {
             // Track passive time for achievements
             SessionStats& sess = const_cast<SessionStats&>(XP::getSession());
             sess.passiveTimeStart = millis();
             
             // Show toast before mode switch (loading screen)
-            Display::showToast("BRAVO 6, GOING DARK");
+            Display::showToast("SILENCE, WE LISTEN, JAH BLESS");
             delay(300);
             
             // Seamless switch to DNH mode
             setMode(PorkchopMode::DNH_MODE);
+            return;  // Prevent fall-through to DNH block this frame
         }
-        dWasPressed = dPressed;
+        dWasPressed_oink = dPressed;
     }
     
     // DNH mode - D key to switch back to OINK, Backspace to exit
@@ -493,21 +494,22 @@ void Porkchop::handleInput() {
         }
         
         // D key - switch back to OINK mode (seamless mode switch)
-        static bool dWasPressed = false;
+        static bool dWasPressed_dnh = false;
         bool dPressed = M5Cardputer.Keyboard.isKeyPressed('d') || M5Cardputer.Keyboard.isKeyPressed('D');
-        if (dPressed && !dWasPressed) {
+        if (dPressed && !dWasPressed_dnh) {
             // Clear passive time tracking
             SessionStats& sess = const_cast<SessionStats&>(XP::getSession());
             sess.passiveTimeStart = 0;
             
             // Show toast before mode switch (loading screen)
-            Display::showToast("WEAPONS HOT");
+            Display::showToast("SCREAMING AT THE ETHER INNIT");
             delay(300);
             
             // Seamless switch to OINK mode
             setMode(PorkchopMode::OINK_MODE);
+            return;  // Prevent any subsequent key handling this frame
         }
-        dWasPressed = dPressed;
+        dWasPressed_dnh = dPressed;
     }
     
     // WARHOG mode - Backspace to stop and return to idle
