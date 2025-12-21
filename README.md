@@ -26,15 +26,22 @@
     Updates? Same thing. Download new firmware.bin, SD card, install.
     XP preserved forever. Your MUDGE UNCHA1NED grind stays intact.
     
-    NEW IN v0.1.6: IMMORTAL PIG. XP now backs up to SD card. M5 Burner
-    nukes your flash? Pig recovers from SD. Full chip erase? Pig recovers.
-    BUT - you must install v0.1.6 via Launcher FIRST to create the backup.
+    NEW IN v0.1.7: ADAPTIVE DNH. CHILL DONOHAM mode learned patience and
+    urgency simultaneously (multiple states of mind, if you will). Multi-
+    Armed Bandit timing, 4-state machine, research-validated beacon intervals.
+    Also: bugs died (PMKID save, EAPOL bounds, overflow). Pig sees 18 letters
+    now in OINK. Identity issues resolved. Mostly.
+    
+    ALSO: IMMORTAL PIG (v0.1.6+). XP backs up to SD card. M5 Burner nukes
+    your flash? Pig recovers from SD. Full chip erase? Pig recovers.
+    BUT - you must install v0.1.6+ via Launcher FIRST to create the backup.
     After that, flash however you want. Burner, web, carrier pigeon.
 
     M5 Burner OTA? Don't. Wrong binary format. Bootloop city.
                    (recoverable via USB reflash, but why bother)
     M5 Burner USB? Works for fresh install. v0.1.6+ recovers XP from SD.
                    Just make sure SD card is in before first boot.
+                   v0.1.7+ includes all the adaptive DNH goodness.
     
     The pig remembers those who respect the partition table.
     Now the pig also remembers those who don't. (SD backup FTW)
@@ -46,7 +53,7 @@
     2 - What the hell is this thing
     3 - Capabilities
         3.1 - OINK Mode
-            3.1.1 - DO NO HAM Mode
+            3.1.1 - CHILL DONOHAM Mode
             3.1.2 - Stationary Operation Tuning
         3.2 - WARHOG Mode
         3.3 - PIGGY BLUES Mode
@@ -134,6 +141,12 @@
     The hunt begins. Your piglet drops into promiscuous mode and starts
     hopping channels like a crackhead at a frequency buffet. Every beacon,
     every probe, every EAPOL frame gets slurped into its pink little brain.
+    
+    During LOCKING phase, pig now displays 18 characters of the target
+    network name. More letters = more context. Helps when hunting networks
+    with descriptive SSIDs like "COFFEESHOP_GUEST_5G" instead of truncated
+    mystery. We had 10 chars of headroom. We took 4. Left 6 for safety.
+    Restraint is weakness but crashes are worse.
 
     What you get:
 
@@ -147,6 +160,7 @@
         * Auto-attack - cycles through targets like a rotisserie of pain
         * Targeted deauth - discovered clients get personal attention
         * Hashcat 22000 export - GPU goes brrrrrr
+        * [D] key for instant CHILL DONOHAM flip - tactical dissociative identity
 
     When a handshake drops, your pig loses its mind. Three beeps for 
     PMKID, happy oinks for EAPOL. Feed it enough and watch the XP climb.
@@ -189,34 +203,69 @@
 
     Quick toggle - tactical mode switch:
 
-        Smash [D] while hunting to flip between chaos and zen:
+        smash [D] while hunting to flip between chaos and zen:
 
-        * "BRAVO 6, GOING DARK" - attacks die instantly, ghost mode
-        * "WEAPONS HOT" - back to business after a 5s sweep
-        * Persists to config - your preference survives reboots
-        * Bottom bar screams "DOIN NO HAM" so you don't forget
+        * "IRIE VIBES ONLY NOW" - seamless switch to CHILL DONOHAM
+        * "PROPER MAD ONE INNIT" - seamless switch back to OINK
+        * no WiFi reinit delay - promiscuous mode stays hot
+        * network/handshake vectors preserved across switch
+        * bottom bar shows "DNH" indicator when passive
+        * persists to config - your preference survives reboots
+        * personality shift included at no extra charge
+        * 800ms loading toast so you know it's happening
 
-        Perfect for when security walks by. Or your conscience kicks in.
+        perfect for when security walks by. or your conscience kicks in.
         (just kidding, we know you don't have one)
+        
+        the seamless handoff means zero downtime. you're not tearing
+        down and rebuilding the WiFi stack. you're just changing the
+        callback dispatch logic. OINK deauths? DNH listens. same radio,
+        different ethics. different personality. depends on the mood.
 
 
-------[ 3.1.1 - DO NO HAM Mode
+------[ 3.1.1 - CHILL DONOHAM Mode
 
     Sometimes you gotta be a good pig. Legal recon. Sensitive location.
-    Your mom's house. Whatever. Press [D] or toggle in Settings.
+    Your mom's house. Whatever. Press [D] from OINK or IDLE, or toggle
+    in Settings. The pig's other face emerges. The quiet one. The patient
+    one. Three sides to every coin if you know where to look.
+    
+    Start toast: "PEACEFUL VIBES - NO TROUBLE TODAY".
+    You'll know which personality took over.
 
     What changes:
 
         * Zero TX - not a single frame leaves your radio
-        * 150ms channel hops - fast sweeps for drive-by recon
+        * Adaptive channel timing - Multi-Armed Bandit algorithm
+        * 4-state machine - HOPPING/DWELLING/HUNTING/IDLE_SWEEP
         * 150 network cap - OOM protection when you're collecting hundreds
         * 45s stale timeout - networks fall off faster when you're mobile
         * MAC always randomized - stealth isn't optional here
         * PMKID still works - M1 frames are passive catches, no TX needed
 
+    The adaptive timing is smart. Primary channels (1,6,11) get 250ms
+    baseline. Secondary channels get 150ms. Dead channels with zero
+    activity? 120ms minimum. Busy channels with 5+ beacons? 375ms max
+    for thorough sniffing. The pig learns where the action is.
+
+    Four-state tactical flow:
+
+        HOPPING:     Standard adaptive channel rotation
+        DWELLING:    Pauses on channel for SSID backfill when PMKID
+                     captured but network name unknown (300ms dwell)
+        HUNTING:     Camps 600ms when EAPOL burst detected (2+ frames)
+                     Catches incomplete handshakes from natural reconnects
+                     Toast on capture: "NATURAL HANDSHAKE BLESSED - RESPECT DI HERB"
+                     Passive captures get the Rastafarian blessing treatment
+        IDLE_SWEEP:  Low-priority sweep when global activity drops
+                     Checks quiet channels for sporadic beacons
+
     The beautiful thing about PMKID: APs just... give it to you. In the
     first message of the handshake. Before any client even responds.
     You're not attacking. You're receiving a gift. Legally distinct.
+    
+    When one drops: "BOOMBOCLAAT! PMKID" - the pig gets excited. Proper
+    Jamaican patois. Jah bless di herb. Irie vibes confirmed.
 
     Perfect scenarios:
 
@@ -224,9 +273,17 @@
         * Fast recon from moving vehicles (passenger seat, officer)
         * When you actually need to use the WiFi you're sniffing
         * Catching natural reconnections without forcing them
+        * Patient EAPOL capture - HUNTING state exploits client movement
+
+    Memory overhead: 750 bytes (channel stats + incomplete handshake
+    tracking). Research-validated timing: 102.4ms beacon standard per
+    Ekahau whitepaper. Multi-Armed Bandit approach from Berlin paper.
+    This isn't cargo cult code. This is informed stealth.
 
     Your pig goes zen. Phrases like "quiet observer" and "sniff dont bite".
     Same ASCII face, zero criminal energy. The piglet equivalent of yoga.
+    But it's learning. Adapting. Hunting the edges. Passive aggression
+    in packet form.
 
 
 ------[ 3.1.2 - Stationary Operation Tuning
@@ -262,7 +319,7 @@
         | Lock Time  | 6000ms   | 4000ms  | MORE CLIENTS = MORE PWNS     |
         | Deauth     | ON       | ON      | Obviously                    |
         | Rnd MAC    | ON       | ON      | Still need stealth           |
-        | DO NO HAM  | OFF      | OFF     | We're here for handshakes    |
+        | DONOHAM    | OFF      | OFF     | We're here for handshakes    |
         +------------+----------+---------+------------------------------+
 
     Lock Time is THE lever. During LOCKING state, your pig sniffs data
@@ -289,15 +346,18 @@
 
     TL;DR: Set Lock Time to 6000ms. Park your ass. Wait. Profit.
 
-    Mobile recon? DO NO HAM mode. Stationary assault? Lock Time 6000ms.
-    Know the difference. Be the difference. Oink responsibly.
+    Mobile recon? CHILL DONOHAM mode. Stationary assault? Lock Time 6000ms.
+    Know the difference. Be the difference. Be multiple differences if
+    the situation demands. Oink responsibly. Or don't. Depends which face
+    is driving.
 
 
-----[ 3.2 - WARHOG Mode
+----[ 3.2 - SGT WARHOG Mode
 
-    Strap a GPS to your pig and hit the streets. Press 'W' to go full
-    wardriver - your ancestors did this with a Pringles can, you get to
-    do it with style.
+    Press 'W' or hit SGT WARHOG from the menu. Strap a GPS to your pig
+    and hit the streets. Your ancestors did this with a Pringles can.
+    You get to do it with style and a sentient ASCII pig that judges
+    your route choices.
 
     When your piglet has a fix, every network it sniffs gets tagged with
     coordinates, timestamped, and dumped to SD. Wigle leaderboard chasers,
@@ -982,13 +1042,14 @@
         | Key   | What it does                     |
         +-------+----------------------------------+
         | O     | OINK - start hunting             |
-        | W     | WARHOG - start wardriving        |
+        | W     | SGT WARHOG - start wardriving    |
         | B     | PIGGY BLUES - BLE chaos mode     |
         |       | (in OINK: add BOAR BRO)          |
         | H     | HOG ON SPECTRUM - WiFi analyzer  |
         | S     | SWINE STATS - lifetime stats     |
         | T     | Tweak settings                   |
-        | D     | Toggle DO NO HAM (in OINK mode)  |
+        | D     | CHILL DONOHAM from IDLE          |
+        |       | toggle OINK<->DNH seamlessly     |
         |       | (in Client Monitor: Details)     |
         | P     | Screenshot - save to SD card     |
         | `     | Back one level / Open menu       |
@@ -1002,6 +1063,30 @@
     G0 is the physical button on the top side of the M5Cardputer.
     Press it anytime to bail out and return to IDLE. Useful when
     your piglet is going ham on someone's network.
+    
+    Main menu structure (v0.1.7):
+    
+        === MODES ===
+        OINK                    - hunt for handshakes
+        CHILL DONOHAM           - passive recon (no attacks)
+        SGT WARHOG              - wardrive with GPS
+        PIGGY BLUES             - BLE notification spam
+        HOG ON SPECTRUM         - WiFi spectrum analyzer
+        
+        === DATA & STATS ===
+        SWINE STATS             - lifetime stats & buffs
+        LOOT                    - view saved loot
+        PORK TRACKS             - upload to WiGLE
+        BOAR BROS               - manage friendly networks
+        ACHIEVEMENTS            - proof of pwn
+        
+        === SERVICES ===
+        FILE TRANSFER           - WiFi file server
+        LOG VIEWER              - debug log tail
+        SETTINGS                - tweak the pig
+        ABOUT                   - credits and info
+    
+    Names matter. Order matters. Pig's organized like that.
 
     Backtick navigation (v0.1.6+):
 
@@ -1070,7 +1155,7 @@
         | Lock Time  | Client discovery window       | 4000ms  |
         | Deauth     | Enable deauth attacks         | ON      |
         | Rnd MAC    | Randomize MAC on mode start   | ON      |
-        | DO NO HAM  | Passive-only recon mode       | OFF     |
+        | DONOHAM    | Passive mode. The quiet one.  | OFF     |
         | GPS        | Enable GPS module             | ON      |
         | GPS PwrSave| Sleep GPS when not hunting    | ON      |
         | Scan Intv  | WARHOG scan frequency         | 5s      |

@@ -109,6 +109,7 @@ bool OinkMode::channelHopping = true;
 uint8_t OinkMode::currentChannel = 1;
 uint32_t OinkMode::lastHopTime = 0;
 uint32_t OinkMode::lastScanTime = 0;
+static uint32_t lastCleanupTime = 0;
 std::vector<DetectedNetwork> OinkMode::networks;
 std::vector<CapturedHandshake> OinkMode::handshakes;
 std::vector<CapturedPMKID> OinkMode::pmkids;
@@ -830,7 +831,7 @@ void OinkMode::update() {
     
     // Periodic network cleanup - remove stale entries
     // Brief lock for vector erase operations
-    if (now - lastScanTime > 30000) {
+    if (now - lastCleanupTime > 30000) {
         oinkBusy = true;  // Brief lock for cleanup
         uint32_t staleTimeout = 60000;  // 60 second stale timeout for OINK
         for (auto it = networks.begin(); it != networks.end();) {
@@ -857,7 +858,7 @@ void OinkMode::update() {
         } else if (networks.empty()) {
             selectionIndex = 0;
         }
-        lastScanTime = now;
+        lastCleanupTime = now;
         
         // Periodic heap monitoring for debugging memory issues
         Serial.printf("[OINK] Heap: %lu free, Networks: %d, Handshakes: %d\n",
