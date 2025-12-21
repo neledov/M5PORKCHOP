@@ -357,6 +357,7 @@ void OinkMode::stopSeamless() {
     running = false;
     deauthing = false;
     scanning = false;
+    oinkBusy = false;  // Reset busy flag for clean handoff
     
     // DON'T disable promiscuous mode - DNH will take over
     // DON'T clear vectors - let them die naturally
