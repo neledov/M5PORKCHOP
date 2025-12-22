@@ -355,10 +355,20 @@ void DoNoHamMode::update() {
                     if (hs.frames[msgIdx].len == 0) {  // Not already captured
                         uint16_t copyLen = pendingHandshake.frames[msgIdx].len;
                         if (copyLen > 0 && copyLen <= 512) {
+                            // EAPOL payload for hashcat 22000
                             memcpy(hs.frames[msgIdx].data, pendingHandshake.frames[msgIdx].data, copyLen);
                             hs.frames[msgIdx].len = copyLen;
                             hs.frames[msgIdx].messageNum = msgIdx + 1;
                             hs.frames[msgIdx].timestamp = now;
+                            
+                            // Full 802.11 frame for PCAP export (radiotap + WPA-SEC)
+                            uint16_t fullCopyLen = pendingHandshake.frames[msgIdx].fullFrameLen;
+                            if (fullCopyLen > 0 && fullCopyLen <= 300) {
+                                memcpy(hs.frames[msgIdx].fullFrame, pendingHandshake.frames[msgIdx].fullFrame, fullCopyLen);
+                                hs.frames[msgIdx].fullFrameLen = fullCopyLen;
+                                hs.frames[msgIdx].rssi = pendingHandshake.frames[msgIdx].rssi;
+                            }
+                            
                             hs.capturedMask |= (1 << msgIdx);
                             hs.lastSeen = now;
                             
@@ -1185,9 +1195,17 @@ void DoNoHamMode::handleEAPOL(const uint8_t* frame, uint16_t len, int8_t rssi) {
             // Store this frame in the appropriate slot (M1-M4 → index 0-3)
             uint8_t frameIdx = messageNum - 1;
             if (frameIdx < 4) {
+                // EAPOL payload for hashcat 22000
                 uint16_t copyLen = min((uint16_t)512, eapolLen);
                 memcpy(pendingHandshake.frames[frameIdx].data, eapol, copyLen);
                 pendingHandshake.frames[frameIdx].len = copyLen;
+                
+                // Full 802.11 frame for PCAP export (radiotap + WPA-SEC compatibility)
+                uint16_t fullCopyLen = min((uint16_t)300, len);
+                memcpy(pendingHandshake.frames[frameIdx].fullFrame, frame, fullCopyLen);
+                pendingHandshake.frames[frameIdx].fullFrameLen = fullCopyLen;
+                pendingHandshake.frames[frameIdx].rssi = rssi;
+                
                 pendingHandshake.capturedMask |= (1 << frameIdx);
             }
             

@@ -464,10 +464,20 @@ void OinkMode::update() {
                     if (hs.frames[msgIdx].len == 0) {  // Not already captured
                         uint16_t copyLen = pendingHandshakeCreate.frames[msgIdx].len;
                         if (copyLen > 0 && copyLen <= 512) {
+                            // EAPOL payload
                             memcpy(hs.frames[msgIdx].data, pendingHandshakeCreate.frames[msgIdx].data, copyLen);
                             hs.frames[msgIdx].len = copyLen;
                             hs.frames[msgIdx].messageNum = msgIdx + 1;
                             hs.frames[msgIdx].timestamp = millis();
+                            
+                            // Full 802.11 frame for PCAP
+                            uint16_t fullLen = pendingHandshakeCreate.frames[msgIdx].fullFrameLen;
+                            if (fullLen > 0 && fullLen <= 300) {
+                                memcpy(hs.frames[msgIdx].fullFrame, pendingHandshakeCreate.frames[msgIdx].fullFrame, fullLen);
+                                hs.frames[msgIdx].fullFrameLen = fullLen;
+                                hs.frames[msgIdx].rssi = pendingHandshakeCreate.frames[msgIdx].rssi;
+                            }
+                            
                             hs.capturedMask |= (1 << msgIdx);
                             hs.lastSeen = millis();
                             
@@ -1517,12 +1527,13 @@ void OinkMode::processDataFrame(const uint8_t* payload, uint16_t len, int8_t rss
         Serial.printf("[OINK DEBUG] EAPOL detected! src=%02X:%02X:...:%02X dst=%02X:%02X:...:%02X len=%d offset=%d\n",
                      srcMac[0], srcMac[1], srcMac[5], dstMac[0], dstMac[1], dstMac[5], len, offset);
         
-        processEAPOL(payload + offset + 8, len - offset - 8, srcMac, dstMac);
+        processEAPOL(payload + offset + 8, len - offset - 8, srcMac, dstMac, payload, len, rssi);
     }
 }
 
 void OinkMode::processEAPOL(const uint8_t* payload, uint16_t len, 
-                             const uint8_t* srcMac, const uint8_t* dstMac) {
+                             const uint8_t* srcMac, const uint8_t* dstMac,
+                             const uint8_t* fullFrame, uint16_t fullFrameLen, int8_t rssi) {
     if (len < 4) return;
     
     // EAPOL: version(1) + type(1) + length(2) + descriptor(...)
@@ -1677,13 +1688,19 @@ void OinkMode::processEAPOL(const uint8_t* payload, uint16_t len,
         // Existing handshake entry - update it directly (field writes are safe)
         CapturedHandshake& hs = handshakes[hsIdx];
         
-        // Store this frame
+        // Store this frame (EAPOL payload for hashcat 22000)
         uint8_t frameIdx = messageNum - 1;
         uint16_t copyLen = min((uint16_t)512, len);
         memcpy(hs.frames[frameIdx].data, payload, copyLen);
         hs.frames[frameIdx].len = copyLen;
         hs.frames[frameIdx].messageNum = messageNum;
         hs.frames[frameIdx].timestamp = millis();
+        hs.frames[frameIdx].rssi = rssi;
+        
+        // Store full 802.11 frame for PCAP export (radiotap + WPA-SEC compatibility)
+        uint16_t fullCopyLen = min((uint16_t)300, fullFrameLen);
+        memcpy(hs.frames[frameIdx].fullFrame, fullFrame, fullCopyLen);
+        hs.frames[frameIdx].fullFrameLen = fullCopyLen;
         
         // Update mask
         hs.capturedMask |= (1 << frameIdx);
@@ -1745,9 +1762,17 @@ void OinkMode::processEAPOL(const uint8_t* payload, uint16_t len,
                 // Store this frame in the appropriate slot (M1-M4 → index 0-3)
                 uint8_t frameIdx = messageNum - 1;
                 if (frameIdx < 4) {
+                    // EAPOL payload for hashcat 22000
                     uint16_t copyLen = min((uint16_t)512, len);
                     memcpy(pendingHandshakeCreate.frames[frameIdx].data, payload, copyLen);
                     pendingHandshakeCreate.frames[frameIdx].len = copyLen;
+                    
+                    // Full 802.11 frame for PCAP export
+                    uint16_t fullCopyLen = min((uint16_t)300, fullFrameLen);
+                    memcpy(pendingHandshakeCreate.frames[frameIdx].fullFrame, fullFrame, fullCopyLen);
+                    pendingHandshakeCreate.frames[frameIdx].fullFrameLen = fullCopyLen;
+                    pendingHandshakeCreate.frames[frameIdx].rssi = rssi;
+                    
                     pendingHandshakeCreate.capturedMask |= (1 << frameIdx);
                 }
                 
@@ -1998,19 +2023,35 @@ void OinkMode::writePCAPHeader(fs::File& f) {
         .thiszone = 0,
         .sigfigs = 0,
         .snaplen = 65535,
-        .linktype = 105           // LINKTYPE_IEEE802_11 (802.11)
+        .linktype = 127           // LINKTYPE_IEEE802_11_RADIOTAP (with radiotap header)
     };
     f.write((uint8_t*)&hdr, sizeof(hdr));
 }
 
+// Minimal radiotap header (8 bytes) - no optional fields
+static const uint8_t RADIOTAP_HEADER[] = {
+    0x00,       // Header revision
+    0x00,       // Header pad
+    0x08, 0x00, // Header length (8, little-endian)
+    0x00, 0x00, 0x00, 0x00  // Present flags (no optional fields)
+};
+
 void OinkMode::writePCAPPacket(fs::File& f, const uint8_t* data, uint16_t len, uint32_t ts) {
+    // Total packet length = radiotap header + 802.11 frame
+    uint32_t totalLen = sizeof(RADIOTAP_HEADER) + len;
+    
     PCAPPacketHeader pkt = {
         .ts_sec = ts / 1000,
         .ts_usec = (ts % 1000) * 1000,
-        .incl_len = len,
-        .orig_len = len
+        .incl_len = totalLen,
+        .orig_len = totalLen
     };
     f.write((uint8_t*)&pkt, sizeof(pkt));
+    
+    // Write radiotap header
+    f.write(RADIOTAP_HEADER, sizeof(RADIOTAP_HEADER));
+    
+    // Write 802.11 frame data
     f.write(data, len);
 }
 

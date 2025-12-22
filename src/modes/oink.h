@@ -36,11 +36,15 @@ struct DetectedNetwork {
     uint8_t clientCount;
 };
 
+// Frame storage for PCAP export - stores full 802.11 frame with headers
 struct EAPOLFrame {
-    uint8_t data[512];
-    uint16_t len;
-    uint8_t messageNum;  // 1-4
+    uint8_t data[512];       // EAPOL payload only (for hashcat 22000)
+    uint8_t fullFrame[300];  // Full 802.11 frame for PCAP (header + LLC + EAPOL)
+    uint16_t len;            // EAPOL payload length
+    uint16_t fullFrameLen;   // Full 802.11 frame length
+    uint8_t messageNum;      // 1-4
     uint32_t timestamp;
+    int8_t rssi;             // Signal strength for radiotap header
 };
 
 struct CapturedHandshake {
@@ -193,7 +197,8 @@ private:
     static void processBeacon(const uint8_t* payload, uint16_t len, int8_t rssi);
     static void processProbeResponse(const uint8_t* payload, uint16_t len, int8_t rssi);
     static void processDataFrame(const uint8_t* payload, uint16_t len, int8_t rssi);
-    static void processEAPOL(const uint8_t* payload, uint16_t len, const uint8_t* srcMac, const uint8_t* dstMac);
+    static void processEAPOL(const uint8_t* payload, uint16_t len, const uint8_t* srcMac, const uint8_t* dstMac,
+                             const uint8_t* fullFrame, uint16_t fullFrameLen, int8_t rssi);
     
     static void sendDeauthFrame(const uint8_t* bssid, const uint8_t* station, uint8_t reason);
     static void sendDeauthBurst(const uint8_t* bssid, const uint8_t* station, uint8_t count);
