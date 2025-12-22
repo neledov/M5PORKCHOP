@@ -585,6 +585,7 @@ void OinkMode::update() {
                         sortNetworksByPriority();
                         autoState = AutoState::PMKID_HUNTING;
                         pmkidTargetIndex = -1;
+                        pmkidProbeTime = 0;  // Reset timer for first target
                         stateStartTime = now;
                         Serial.println("[OINK] Scan complete, entering PMKID hunt mode");
                         Mood::setStatusMessage("ghost farming");
@@ -622,57 +623,53 @@ void OinkMode::update() {
                     break;
                 }
                 
-                // Find next WPA2/WPA3 AP without PMKID
-                bool foundTarget = false;
-                for (int attempts = 0; attempts < (int)networks.size() && !foundTarget; attempts++) {
-                    pmkidTargetIndex = (pmkidTargetIndex + 1) % networks.size();
-                    DetectedNetwork& net = networks[pmkidTargetIndex];
-                    
-                    // Skip: Open, WEP, BOAR BRO, PMF, or already have PMKID
-                    if (net.authmode == WIFI_AUTH_OPEN) continue;
-                    if (net.authmode == WIFI_AUTH_WEP) continue;
-                    if (isExcluded(net.bssid)) continue;
-                    if (net.hasPMF) continue;
-                    
-                    // Check if we already have PMKID for this AP
-                    bool hasPMKID = false;
-                    for (const auto& p : pmkids) {
-                        if (memcmp(p.bssid, net.bssid, 6) == 0) {
-                            hasPMKID = true;
-                            break;
+                // Only find new target if: first time OR timeout expired
+                if (pmkidProbeTime == 0 || (now - pmkidProbeTime >= PMKID_TIMEOUT)) {
+                    // Find next WPA2/WPA3 AP without PMKID
+                    bool foundTarget = false;
+                    for (int attempts = 0; attempts < (int)networks.size() && !foundTarget; attempts++) {
+                        pmkidTargetIndex = (pmkidTargetIndex + 1) % networks.size();
+                        DetectedNetwork& net = networks[pmkidTargetIndex];
+                        
+                        // Skip: Open, WEP, BOAR BRO, PMF, or already have PMKID
+                        if (net.authmode == WIFI_AUTH_OPEN) continue;
+                        if (net.authmode == WIFI_AUTH_WEP) continue;
+                        if (isExcluded(net.bssid)) continue;
+                        if (net.hasPMF) continue;
+                        
+                        // Check if we already have PMKID for this AP
+                        bool hasPMKID = false;
+                        for (const auto& p : pmkids) {
+                            if (memcmp(p.bssid, net.bssid, 6) == 0) {
+                                hasPMKID = true;
+                                break;
+                            }
                         }
+                        if (hasPMKID) continue;
+                        
+                        // Valid target found
+                        foundTarget = true;
+                        
+                        // Set channel
+                        if (currentChannel != net.channel) {
+                            setChannel(net.channel);
+                        }
+                        
+                        // Send association request
+                        sendAssociationRequest(net.bssid, net.ssid, strlen(net.ssid));
+                        pmkidProbeTime = now;
+                        Avatar::sniff();
                     }
-                    if (hasPMKID) continue;
                     
-                    // Valid target found
-                    foundTarget = true;
-                    
-                    // Set channel
-                    if (currentChannel != net.channel) {
-                        setChannel(net.channel);
+                    if (!foundTarget) {
+                        // No more targets to probe
+                        Serial.printf("[OINK] PMKID hunt complete: %d PMKIDs captured\n", pmkids.size());
+                        autoState = AutoState::NEXT_TARGET;
+                        stateStartTime = now;
+                        Mood::setStatusMessage("weapons hot");
                     }
-                    
-                    // Send association request
-                    sendAssociationRequest(net.bssid, net.ssid, strlen(net.ssid));
-                    pmkidProbeTime = now;
-                    Avatar::sniff();
                 }
-                
-                // Wait for M1 response with PMKID
-                if (foundTarget) {
-                    uint32_t waitTime = now - pmkidProbeTime;
-                    if (waitTime < PMKID_TIMEOUT) {
-                        // Still waiting for response
-                        break;
-                    }
-                    // Timeout for this AP, try next one (will cycle in next update)
-                } else {
-                    // No more targets to probe
-                    Serial.printf("[OINK] PMKID hunt complete: %d PMKIDs captured\n", pmkids.size());
-                    autoState = AutoState::NEXT_TARGET;
-                    stateStartTime = now;
-                    Mood::setStatusMessage("weapons hot");
-                }
+                // else: still waiting for M1 response, do nothing
             }
             break;
             
