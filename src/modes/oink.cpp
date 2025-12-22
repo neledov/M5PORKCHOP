@@ -790,6 +790,21 @@ void OinkMode::update() {
                 }
             }
             
+            // Validate target still exists (detect cleanup shift immediately)
+            if (targetIndex >= 0 && targetIndex < (int)networks.size()) {
+                if (memcmp(networks[targetIndex].bssid, targetBssid, 6) != 0) {
+                    // Target shifted or vanished - abort attack
+                    Serial.println("[OINK] Target network shifted, aborting attack");
+                    autoState = AutoState::NEXT_TARGET;
+                    stateStartTime = now;
+                    deauthing = false;
+                    channelHopping = true;
+                    targetIndex = -1;
+                    memset(targetBssid, 0, 6);
+                    break;  // Exit ATTACKING state immediately
+                }
+            }
+            
             // Update mood with attack progress
             if (now - lastMoodUpdate > 2000) {
                 if (targetIndex >= 0 && targetIndex < (int)networks.size()) {
@@ -803,18 +818,24 @@ void OinkMode::update() {
                 lastMoodUpdate = now;
             }
             
-            // Check if handshake captured for this target
+            // Check if handshake captured - use BSSID lookup instead of targetIndex
+            // to avoid marking wrong network if cleanup shifted indices
             for (const auto& hs : handshakes) {
-                if (targetIndex >= 0 && targetIndex < (int)networks.size()) {
-                    if (memcmp(hs.bssid, networks[targetIndex].bssid, 6) == 0 && hs.isComplete()) {
-                        // Got handshake! Mark network and move to next
-                        networks[targetIndex].hasHandshake = true;
-                        Serial.printf("[OINK] Handshake captured for %s!\n", networks[targetIndex].ssid);
-                        SDLog::log("OINK", "Handshake captured: %s", networks[targetIndex].ssid);
-                        autoState = AutoState::WAITING;
-                        stateStartTime = now;
-                        deauthing = false;
-                        break;
+                if (hs.isComplete()) {
+                    // Find network by BSSID, not by stale targetIndex
+                    int netIdx = findNetwork(hs.bssid);
+                    if (netIdx >= 0) {
+                        networks[netIdx].hasHandshake = true;
+                        // If this was our current target, transition to WAITING
+                        if (targetIndex >= 0 && targetIndex < (int)networks.size() &&
+                            memcmp(networks[targetIndex].bssid, hs.bssid, 6) == 0) {
+                            Serial.printf("[OINK] Handshake captured for %s!\n", networks[netIdx].ssid);
+                            SDLog::log("OINK", "Handshake captured: %s", networks[netIdx].ssid);
+                            autoState = AutoState::WAITING;
+                            stateStartTime = now;
+                            deauthing = false;
+                            break;
+                        }
                     }
                 }
             }
@@ -910,7 +931,15 @@ void OinkMode::update() {
     // Brief lock for vector erase operations
     if (now - lastCleanupTime > 30000) {
         oinkBusy = true;  // Brief lock for cleanup
-        uint32_t staleTimeout = 60000;  // 60 second stale timeout for OINK
+        
+        // Dynamic stale timeout: detect high churn (wardriving) and reduce timeout
+        // High churn = 15+ new networks in last 30s, switch to 30s timeout
+        static uint16_t networksLastCleanup = 0;
+        uint16_t currentNetCount = networks.size();
+        uint16_t newNetworks = (currentNetCount > networksLastCleanup) ? 
+                               (currentNetCount - networksLastCleanup) : 0;
+        uint32_t staleTimeout = (newNetworks >= 15) ? 30000 : 60000;  // Wardriving: 30s, stationary: 60s
+        networksLastCleanup = currentNetCount;
         for (auto it = networks.begin(); it != networks.end();) {
             if (now - it->lastSeen > staleTimeout) {
                 it = networks.erase(it);
