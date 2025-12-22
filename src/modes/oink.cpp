@@ -1520,7 +1520,7 @@ void OinkMode::processEAPOL(const uint8_t* payload, uint16_t len,
     
     uint8_t messageNum = 0;
     if (keyAck && !keyMic) messageNum = 1;
-    else if (!keyAck && keyMic && !install) messageNum = 2;
+    else if (!keyAck && keyMic && !secure) messageNum = 2;  // M2: has MIC, not secure (M4 is secure)
     else if (keyAck && keyMic && install) messageNum = 3;
     else if (!keyAck && keyMic && secure) messageNum = 4;
     
