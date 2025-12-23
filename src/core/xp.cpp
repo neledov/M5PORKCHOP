@@ -562,6 +562,7 @@ void XP::addXP(XPEvent event) {
             // ULTRA STREAK! celebration at 20 captures
             if (captureStreak == 20 && !ultraStreakAnnounced) {
                 Display::showToast("ULTRA STREAK!");
+                Display::flashSiren(5);  // Extra sirens for ultra!
                 ultraStreakAnnounced = true;
             }
             // Check for clutch capture (handshake at <10% battery)
@@ -582,6 +583,7 @@ void XP::addXP(XPEvent event) {
             // ULTRA STREAK! celebration at 20 captures
             if (captureStreak == 20 && !ultraStreakAnnounced) {
                 Display::showToast("ULTRA STREAK!");
+                Display::flashSiren(5);  // Extra sirens for ultra!
                 ultraStreakAnnounced = true;
             }
             // Check for clutch capture (PMKID at <10% battery)
@@ -747,6 +749,7 @@ void XP::addXP(uint16_t amount) {
             // JACKPOT! 2% chance for 5x
             amount *= 5;
             Display::showToast("JACKPOT!");
+            Display::flashSiren(3);  // Police lights!
         } else if (roll >= 90) {
             // Bonus! 8% chance for 2x
             amount *= 2;

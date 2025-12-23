@@ -58,6 +58,9 @@ public:
     static void showLevelUp(uint8_t oldLevel, uint8_t newLevel);  // RPG level up popup
     static void showClassPromotion(const char* oldClass, const char* newClass);  // Class tier promotion popup
     
+    // LED siren effect (police lights for big events)
+    static void flashSiren(uint8_t cycles = 3);  // Red/blue alternating flash
+    
     // PWNED banner (shown in top bar for 1 minute after capture)
     static void showLoot(const String& ssid);
     

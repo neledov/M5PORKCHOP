@@ -637,6 +637,29 @@ void Display::showToast(const String& message) {
     pushAll();
 }
 
+// M5Cardputer NeoPixel LED on GPIO 21
+#define LED_PIN 21
+
+void Display::flashSiren(uint8_t cycles) {
+    // Police siren effect - red/blue alternating flash
+    // Uses ESP32-S3 built-in neopixelWrite() - no library needed!
+    // Non-blocking timing would require a state machine, so we do quick blocking flashes
+    // 3 cycles × 2 colors × 40ms = 240ms total (acceptable for big events)
+    
+    for (uint8_t i = 0; i < cycles; i++) {
+        // RED flash
+        neopixelWrite(LED_PIN, 255, 0, 0);
+        delay(40);
+        
+        // BLUE flash
+        neopixelWrite(LED_PIN, 0, 0, 255);
+        delay(40);
+    }
+    
+    // Turn off LED
+    neopixelWrite(LED_PIN, 0, 0, 0);
+}
+
 void Display::showLevelUp(uint8_t oldLevel, uint8_t newLevel) {
     // Level up popup - pink filled box with black text, auto-dismiss after 2.5s
     // Level up phrases
