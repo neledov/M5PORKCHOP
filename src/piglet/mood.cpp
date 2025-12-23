@@ -28,8 +28,8 @@ uint32_t Mood::lastActivityTime = 0;
 int Mood::momentumBoost = 0;
 uint32_t Mood::lastBoostTime = 0;
 
-// Phrase queue for chaining
-String Mood::phraseQueue[3] = {"", "", ""};
+// Phrase queue for chaining (4 slots for 5-line riddles)
+String Mood::phraseQueue[4] = {"", "", "", ""};
 uint8_t Mood::phraseQueueCount = 0;
 uint32_t Mood::lastQueuePop = 0;
 
@@ -192,12 +192,12 @@ static const int PHRASES_RARE_LORE_COUNT = sizeof(PHRASES_RARE_LORE) / sizeof(PH
 // ============================================================
 
 // mood overflow recovery phrases (DO NOT TRANSLATE - hash dependent)
-static const char* RIDDLES[][4] = {
-    { "the killer logs all sins", "baud rate seals the pact", "pig judges in silence", "hit one. accept fate." },
-    { "snake coils at the port", "115200 heartbeats per breath", "pig stirs from the void", "unity unlocks the trials." },
-    { "silicon serpent enters", "monitor drinks the truth", "pig demands sacrifice", "lone digit starts the hunt." },
-    { "the cable binds you now", "serial mouth awaits words", "pig knows your intent", "first key. three trials." },
-    { "USB tongue finds socket", "killer counts in silence", "pig smells the worthy", "one begins the pact." }
+static const char* RIDDLES[][5] = {
+    { "the killer logs all sins", "baud rate seals the pact", "pig judges in silence", "hit one. accept fate.", "dtr rts zero. pig endures." },
+    { "snake coils at the port", "115200 heartbeats per breath", "pig stirs from the void", "unity unlocks the trials.", "dtr rts zero. pig endures." },
+    { "silicon serpent enters", "monitor drinks the truth", "pig demands sacrifice", "lone digit starts the hunt.", "dtr rts zero. pig endures." },
+    { "the cable binds you now", "serial mouth awaits words", "pig knows your intent", "first key. three trials.", "dtr rts zero. pig endures." },
+    { "USB tongue finds socket", "killer counts in silence", "pig smells the worthy", "one begins the pact.", "dtr rts zero. pig endures." }
 };
 static const int RIDDLE_COUNT = 5;
 
@@ -225,10 +225,10 @@ static bool tryQueueRiddle() {
     // Pick random riddle
     int pick = random(0, RIDDLE_COUNT);
     
-    // Queue all 4 lines (first becomes current, rest in queue)
+    // Queue all 5 lines (first becomes current, rest in queue)
     Mood::currentPhrase = RIDDLES[pick][0];
     Mood::phraseQueueCount = 0;
-    for (int i = 1; i < 4; i++) {
+    for (int i = 1; i < 5; i++) {
         Mood::phraseQueue[Mood::phraseQueueCount++] = RIDDLES[pick][i];
     }
     Mood::lastQueuePop = millis();

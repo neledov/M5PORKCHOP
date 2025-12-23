@@ -44,7 +44,7 @@ public:
     // Phase 6: Public for phrase chaining helper functions
     static String currentPhrase;
     static uint32_t lastPhraseChange;
-    static String phraseQueue[3];
+    static String phraseQueue[4];  // Expanded for 5-line riddles
     static uint8_t phraseQueueCount;
     static uint32_t lastQueuePop;
     
