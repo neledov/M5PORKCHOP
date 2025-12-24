@@ -262,6 +262,9 @@ static const char HTML_TEMPLATE[] PROGMEM = R"rawliteral(
         <label class="btn upload-btn">Upload<input type="file" multiple onchange="uploadFiles(this.files)"></label>
         <button class="btn" onclick="selectAll()">Sel All</button>
         <button class="btn btn-outline" onclick="selectNone()">Sel None</button>
+        <button class="btn" onclick="showRenameModal()" id="btnRename">Rename</button>
+        <button class="btn" onclick="copySelected()" id="btnCopy">Copy→</button>
+        <button class="btn" onclick="moveSelected()" id="btnMove">Move→</button>
         <button class="btn" onclick="downloadSelected()" id="btnDownload">Download</button>
         <button class="btn btn-danger" onclick="deleteSelected()" id="btnDelete">Delete</button>
     </div>
@@ -270,11 +273,11 @@ static const char HTML_TEMPLATE[] PROGMEM = R"rawliteral(
     
     <div class="fkey-bar">
         <div class="fkey" onclick="showHelp()"><span>F1</span> Help</div>
-        <div class="fkey" onclick="refresh()"><span>F2</span> Refresh</div>
+        <div class="fkey" onclick="showRenameModal()"><span>F2</span> Ren</div>
+        <div class="fkey" onclick="copySelected()"><span>F5</span> Copy</div>
+        <div class="fkey" onclick="moveSelected()"><span>F6</span> Move</div>
         <div class="fkey" onclick="showNewFolderModal()"><span>F7</span> MkDir</div>
-        <div class="fkey" onclick="deleteSelected()"><span>F8</span> Delete</div>
-        <div class="fkey" onclick="downloadSelected()"><span>F9</span> Get</div>
-        <div class="fkey"><span>Tab</span> Switch</div>
+        <div class="fkey" onclick="deleteSelected()"><span>F8</span> Del</div>
     </div>
     
     <div class="status" id="status">awaiting orders | ↑↓ nav | space sel | enter exec | tab flip</div>
@@ -298,17 +301,33 @@ static const char HTML_TEMPLATE[] PROGMEM = R"rawliteral(
             <h3>Keyboard Shortcuts</h3>
             <pre style="font-size:0.85em;line-height:1.6;opacity:0.8">
 Arrow Up/Down  Navigate files
-Enter          Open folder / Download file
+Enter          Open folder / Download
 Space          Toggle selection
 Tab            Switch pane
 Ctrl+A         Select all
-Delete/F8      Delete selected
+F2             Rename focused item
+F5             Copy sel → other pane
+F6             Move sel → other pane
 F7             New folder
-F9             Download selected
-Backspace      Go to parent folder
+F8/Delete      Delete selected
+Backspace      Parent folder
             </pre>
             <div class="modal-actions">
                 <button class="btn" onclick="hideModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal" id="renameModal" onclick="if(event.target===this)hideModal()">
+        <div class="modal-content">
+            <h3>Rename</h3>
+            <input type="text" id="renameNewName" placeholder="New name"
+                   onkeydown="if(event.key==='Enter')doRename();if(event.key==='Escape')hideModal()">
+            <input type="hidden" id="renameOldPath">
+            <div class="modal-actions">
+                <button class="btn" onclick="doRename()">Rename</button>
+                <button class="btn btn-outline" onclick="hideModal()">Cancel</button>
             </div>
         </div>
     </div>
@@ -548,7 +567,15 @@ function handleKeydown(e) {
             break;
         case 'F2':
             e.preventDefault();
-            refresh();
+            showRenameModal();
+            break;
+        case 'F5':
+            e.preventDefault();
+            copySelected();
+            break;
+        case 'F6':
+            e.preventDefault();
+            moveSelected();
             break;
         case 'F7':
             e.preventDefault();
@@ -657,6 +684,121 @@ function showHelp() {
 function hideModal() {
     document.getElementById('newFolderModal').style.display = 'none';
     document.getElementById('helpModal').style.display = 'none';
+    document.getElementById('renameModal').style.display = 'none';
+}
+
+function showRenameModal() {
+    const pane = panes[activePane];
+    const item = pane.items[pane.focusIdx];
+    if (!item || item.isParent) { setStatus('select item to rename'); return; }
+    const path = (pane.path === '/' ? '' : pane.path) + '/' + item.name;
+    document.getElementById('renameOldPath').value = path;
+    document.getElementById('renameNewName').value = item.name;
+    document.getElementById('renameModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('renameNewName').select(), 50);
+}
+
+async function doRename() {
+    const oldPath = document.getElementById('renameOldPath').value;
+    const newName = document.getElementById('renameNewName').value.trim();
+    if (!newName) { alert('provide new name'); return; }
+    if (newName.includes('/') || newName.includes('..')) { alert('illegal characters'); return; }
+    
+    const pane = panes[activePane];
+    const newPath = (pane.path === '/' ? '' : pane.path) + '/' + newName;
+    
+    try {
+        const resp = await fetch('/api/rename?old=' + encodeURIComponent(oldPath) + '&new=' + encodeURIComponent(newPath));
+        const result = await resp.json();
+        if (result.success) {
+            setStatus('renamed: ' + newName);
+            hideModal();
+            loadPane(activePane, pane.path);
+        } else {
+            setStatus('rename failed: ' + (result.error || 'unknown'));
+        }
+    } catch(e) {
+        setStatus('fault: ' + e.message);
+    }
+}
+
+async function copySelected() {
+    const src = panes[activePane];
+    const dst = panes[activePane === 'L' ? 'R' : 'L'];
+    
+    // Prevent copying to same directory
+    if (src.path === dst.path) {
+        setStatus('source and dest are same directory');
+        return;
+    }
+    
+    // Get selected or focused items
+    let items = src.items.filter(i => i.selected && !i.isParent);
+    if (!items.length && src.focusIdx >= 0) {
+        const item = src.items[src.focusIdx];
+        if (item && !item.isParent) items = [item];
+    }
+    if (!items.length) { setStatus('select files to copy'); return; }
+    
+    const paths = items.map(i => (src.path === '/' ? '' : src.path) + '/' + i.name);
+    setStatus('copying ' + items.length + ' item(s)...');
+    
+    try {
+        const resp = await fetch('/api/copy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({files: paths, dest: dst.path})
+        });
+        const result = await resp.json();
+        if (result.success) {
+            setStatus('copied: ' + result.copied + ' item(s)');
+            loadPane(activePane === 'L' ? 'R' : 'L', dst.path);
+        } else {
+            setStatus('copy failed: ' + (result.error || 'unknown'));
+        }
+    } catch(e) {
+        setStatus('fault: ' + e.message);
+    }
+}
+
+async function moveSelected() {
+    const src = panes[activePane];
+    const dst = panes[activePane === 'L' ? 'R' : 'L'];
+    
+    // Prevent moving to same directory
+    if (src.path === dst.path) {
+        setStatus('source and dest are same directory');
+        return;
+    }
+    
+    // Get selected or focused items
+    let items = src.items.filter(i => i.selected && !i.isParent);
+    if (!items.length && src.focusIdx >= 0) {
+        const item = src.items[src.focusIdx];
+        if (item && !item.isParent) items = [item];
+    }
+    if (!items.length) { setStatus('select files to move'); return; }
+    
+    const paths = items.map(i => (src.path === '/' ? '' : src.path) + '/' + i.name);
+    setStatus('moving ' + items.length + ' item(s)...');
+    
+    try {
+        const resp = await fetch('/api/move', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({files: paths, dest: dst.path})
+        });
+        const result = await resp.json();
+        if (result.success) {
+            setStatus('moved: ' + result.moved + ' item(s)');
+            loadPane('L', panes.L.path);
+            loadPane('R', panes.R.path);
+        } else {
+            setStatus('move failed: ' + (result.error || 'unknown'));
+        }
+    } catch(e) {
+        setStatus('fault: ' + e.message);
+    }
 }
 
 async function createFolder() {
@@ -788,6 +930,9 @@ void FileServer::startServer() {
     server->on("/api/ls", HTTP_GET, handleFileList);
     server->on("/api/sdinfo", HTTP_GET, handleSDInfo);
     server->on("/api/bulkdelete", HTTP_POST, handleBulkDelete);
+    server->on("/api/rename", HTTP_GET, handleRename);
+    server->on("/api/copy", HTTP_POST, handleCopy);
+    server->on("/api/move", HTTP_POST, handleMove);
     server->on("/download", HTTP_GET, handleDownload);
     server->on("/upload", HTTP_POST, handleUpload, handleUploadProcess);
     server->on("/delete", HTTP_GET, handleDelete);
@@ -1062,7 +1207,7 @@ void FileServer::handleUploadProcess() {
 }
 
 // Recursive delete helper - properly handles nested directories
-static bool deletePathRecursive(const String& path) {
+bool FileServer::deletePathRecursive(const String& path) {
     File f = SD.open(path);
     if (!f) return false;
     
@@ -1206,6 +1351,268 @@ void FileServer::handleMkdir() {
     } else {
         server->send(500, "text/plain", "Create folder failed");
     }
+}
+
+void FileServer::handleRename() {
+    String oldPath = server->arg("old");
+    String newPath = server->arg("new");
+    
+    if (oldPath.isEmpty() || newPath.isEmpty()) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Missing path\"}");
+        return;
+    }
+    
+    // Security: prevent directory traversal
+    if (oldPath.indexOf("..") >= 0 || newPath.indexOf("..") >= 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid path\"}");
+        return;
+    }
+    
+    if (SD.rename(oldPath, newPath)) {
+        Serial.printf("[FILESERVER] Renamed: %s -> %s\n", oldPath.c_str(), newPath.c_str());
+        server->send(200, "application/json", "{\"success\":true}");
+    } else {
+        server->send(500, "application/json", "{\"success\":false,\"error\":\"Rename failed\"}");
+    }
+}
+
+bool FileServer::copyFileChunked(const String& srcPath, const String& dstPath) {
+    File src = SD.open(srcPath, FILE_READ);
+    if (!src) return false;
+    
+    File dst = SD.open(dstPath, FILE_WRITE);
+    if (!dst) {
+        src.close();
+        return false;
+    }
+    
+    #define COPY_CHUNK_SIZE 4096
+    uint8_t* buf = (uint8_t*)malloc(COPY_CHUNK_SIZE);
+    if (!buf) {
+        src.close();
+        dst.close();
+        return false;
+    }
+    
+    bool success = true;
+    while (src.available()) {
+        size_t bytes = src.read(buf, COPY_CHUNK_SIZE);
+        if (dst.write(buf, bytes) != bytes) {
+            success = false;
+            break;
+        }
+        yield();  // Feed watchdog during long copies
+    }
+    
+    free(buf);
+    src.close();
+    dst.close();
+    
+    if (!success) {
+        SD.remove(dstPath);  // Clean up partial copy
+    }
+    
+    return success;
+}
+
+bool FileServer::copyPathRecursive(const String& srcPath, const String& dstPath) {
+    File src = SD.open(srcPath);
+    if (!src) return false;
+    
+    if (src.isDirectory()) {
+        src.close();
+        
+        if (!SD.mkdir(dstPath)) return false;
+        
+        File dir = SD.open(srcPath);
+        File entry;
+        while ((entry = dir.openNextFile())) {
+            String name = entry.name();
+            // Extract just filename from full path
+            int lastSlash = name.lastIndexOf('/');
+            if (lastSlash >= 0) name = name.substring(lastSlash + 1);
+            
+            String newSrc = srcPath + "/" + name;
+            String newDst = dstPath + "/" + name;
+            
+            entry.close();
+            if (!copyPathRecursive(newSrc, newDst)) {
+                dir.close();
+                return false;
+            }
+            yield();
+        }
+        dir.close();
+        return true;
+    } else {
+        src.close();
+        return copyFileChunked(srcPath, dstPath);
+    }
+}
+
+void FileServer::handleCopy() {
+    if (!server->hasArg("plain")) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"No body\"}");
+        return;
+    }
+    
+    String body = server->arg("plain");
+    
+    // Parse dest folder
+    int destIdx = body.indexOf("\"dest\"");
+    if (destIdx < 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Missing dest\"}");
+        return;
+    }
+    int destStart = body.indexOf('"', body.indexOf(':', destIdx)) + 1;
+    int destEnd = body.indexOf('"', destStart);
+    String destDir = body.substring(destStart, destEnd);
+    
+    // Security check
+    if (destDir.indexOf("..") >= 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid dest\"}");
+        return;
+    }
+    
+    // Parse files array
+    int filesIdx = body.indexOf("\"files\"");
+    if (filesIdx < 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Missing files\"}");
+        return;
+    }
+    
+    int arrStart = body.indexOf('[', filesIdx);
+    int arrEnd = body.indexOf(']', arrStart);
+    if (arrStart < 0 || arrEnd < 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid files array\"}");
+        return;
+    }
+    
+    String arrContent = body.substring(arrStart + 1, arrEnd);
+    int copied = 0;
+    int failed = 0;
+    
+    int pos = 0;
+    while (pos < (int)arrContent.length()) {
+        int quoteStart = arrContent.indexOf('"', pos);
+        if (quoteStart < 0) break;
+        
+        int quoteEnd = arrContent.indexOf('"', quoteStart + 1);
+        if (quoteEnd < 0) break;
+        
+        String srcPath = arrContent.substring(quoteStart + 1, quoteEnd);
+        pos = quoteEnd + 1;
+        
+        if (srcPath.indexOf("..") >= 0) {
+            failed++;
+            continue;
+        }
+        
+        // Extract filename from source path
+        int lastSlash = srcPath.lastIndexOf('/');
+        String filename = (lastSlash >= 0) ? srcPath.substring(lastSlash + 1) : srcPath;
+        String dstPath = (destDir == "/") ? "/" + filename : destDir + "/" + filename;
+        
+        if (copyPathRecursive(srcPath, dstPath)) {
+            copied++;
+            Serial.printf("[FILESERVER] Copied: %s -> %s\n", srcPath.c_str(), dstPath.c_str());
+        } else {
+            failed++;
+        }
+        
+        yield();
+    }
+    
+    String response = "{\"success\":true,\"copied\":" + String(copied) + ",\"failed\":" + String(failed) + "}";
+    server->send(200, "application/json", response);
+}
+
+void FileServer::handleMove() {
+    if (!server->hasArg("plain")) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"No body\"}");
+        return;
+    }
+    
+    String body = server->arg("plain");
+    
+    // Parse dest folder
+    int destIdx = body.indexOf("\"dest\"");
+    if (destIdx < 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Missing dest\"}");
+        return;
+    }
+    int destStart = body.indexOf('"', body.indexOf(':', destIdx)) + 1;
+    int destEnd = body.indexOf('"', destStart);
+    String destDir = body.substring(destStart, destEnd);
+    
+    if (destDir.indexOf("..") >= 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid dest\"}");
+        return;
+    }
+    
+    // Parse files array
+    int filesIdx = body.indexOf("\"files\"");
+    if (filesIdx < 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Missing files\"}");
+        return;
+    }
+    
+    int arrStart = body.indexOf('[', filesIdx);
+    int arrEnd = body.indexOf(']', arrStart);
+    if (arrStart < 0 || arrEnd < 0) {
+        server->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid files array\"}");
+        return;
+    }
+    
+    String arrContent = body.substring(arrStart + 1, arrEnd);
+    int moved = 0;
+    int failed = 0;
+    
+    int pos = 0;
+    while (pos < (int)arrContent.length()) {
+        int quoteStart = arrContent.indexOf('"', pos);
+        if (quoteStart < 0) break;
+        
+        int quoteEnd = arrContent.indexOf('"', quoteStart + 1);
+        if (quoteEnd < 0) break;
+        
+        String srcPath = arrContent.substring(quoteStart + 1, quoteEnd);
+        pos = quoteEnd + 1;
+        
+        if (srcPath.indexOf("..") >= 0) {
+            failed++;
+            continue;
+        }
+        
+        // Extract filename from source path
+        int lastSlash = srcPath.lastIndexOf('/');
+        String filename = (lastSlash >= 0) ? srcPath.substring(lastSlash + 1) : srcPath;
+        String dstPath = (destDir == "/") ? "/" + filename : destDir + "/" + filename;
+        
+        // Try SD.rename first (fast, atomic)
+        if (SD.rename(srcPath, dstPath)) {
+            moved++;
+            Serial.printf("[FILESERVER] Moved: %s -> %s\n", srcPath.c_str(), dstPath.c_str());
+        } 
+        // Fallback to copy+delete for cross-filesystem moves
+        else if (copyPathRecursive(srcPath, dstPath)) {
+            if (deletePathRecursive(srcPath)) {
+                moved++;
+                Serial.printf("[FILESERVER] Moved (copy+del): %s -> %s\n", srcPath.c_str(), dstPath.c_str());
+            } else {
+                // Rollback: delete the copy
+                deletePathRecursive(dstPath);
+                failed++;
+            }
+        } else {
+            failed++;
+        }
+        
+        yield();
+    }
+    
+    String response = "{\"success\":true,\"moved\":" + String(moved) + ",\"failed\":" + String(failed) + "}";
+    server->send(200, "application/json", response);
 }
 
 void FileServer::handleNotFound() {

@@ -51,7 +51,15 @@ private:
     static void handleBulkDelete();
     static void handleMkdir();
     static void handleSDInfo();
+    static void handleRename();
+    static void handleCopy();
+    static void handleMove();
     static void handleNotFound();
+    
+    // File operation helpers
+    static bool deletePathRecursive(const String& path);
+    static bool copyFileChunked(const String& srcPath, const String& dstPath);
+    static bool copyPathRecursive(const String& srcPath, const String& dstPath);
     
     // HTML template
     static const char* getHTML();
