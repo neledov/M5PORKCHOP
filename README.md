@@ -83,24 +83,33 @@
 
 --[ 1 - Introduction
 
-    you're looking at PORKCHOP - a pocket-sized WiFi hunting companion
-    that lives in your M5Cardputer. think pwnagotchi had a baby with a
-    tamagotchi, except this one oinks and has zero chill when it catches
-    a handshake.
+    christmas eve. you're reading a readme for an ASCII pig that hunts
+    WiFi. your parents wonder where they went wrong. valid.
     
-    the pig sniffs handshakes. the pig yoinks PMKIDs. the pig hunts 
-    individual devices and tracks their movement in real time. the pig
-    paints spectrum graphs with vulnerability indicators. the pig spams
-    BLE notifications to every phone in range. the pig has an XP system
-    with 40 ranks and 63 achievements because apparently we made an RPG.
+    PORKCHOP. pwnagotchi meets tamagotchi. nobody asked. we shipped.
+    lives in M5Cardputer. tiny keyboard. big chaos energy.
     
-    the piglet personality isn't just for show. it reacts to what you're
-    doing - gets hyped when you pop a 4-way, goes tactical when you're
-    mapping the concrete jungle, gets aggressive when deauthing clients,
-    and gets sleepy when the airwaves go quiet.
+    we did this with a Pringles can and a laptop in 2003. now you get
+    an animated pig that does the work. you're welcome. or sorry.
+    depends on your threat model.
     
-    wifi security awareness through an unhinged hacking tamagotchi.
-    this is what we do. this is PORKCHOP.
+    the pig sniffs. yoinks. deauths. tracks targets with proximity
+    arrows. paints spectrum graphs. spams BLE until phones cry.
+    40 ranks. 63 achievements. mood system. we have problems.
+    
+    catch a handshake - pig loses its mind. go passive - pig goes zen.
+    wardrive - pig navigates. idle too long - pig gets sad. we spent
+    real hours on pig emotions. no regrets.
+    
+    this is not a vandalism kit. it's a learning tool. understand the
+    networks you use. audit what you own. no unauthorized deauths.
+    loot drops passively. zero TX. right place, right time.
+    it's gambling with extra steps. same dopamine. cheaper.
+    tools don't make choices. you do. don't be a tool.
+    
+    the pig is a tool. you're not. act accordingly.
+    
+    merry christmas. oink.
 
 
 --[ 2 - What the hell is this thing
