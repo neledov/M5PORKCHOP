@@ -16,6 +16,25 @@ uint32_t GPS::lastFixTime = 0;
 uint32_t GPS::lastUpdateTime = 0;
 
 void GPS::init(uint8_t rxPin, uint8_t txPin, uint32_t baud) {
+    // CRITICAL FIX: Detect potential LoRa pin conflict on Cardputer ADV
+    // Cap LoRa868 module uses 14-pin EXT bus which conflicts with default Grove GPS pins
+    // Grove GPS: RX=G1, TX=G2 (correct for CPv1.1)
+    // Cap LoRa: Should use RX=G15, TX=G13 (correct for CP-ADV)
+    // Using wrong pins causes UART/SPI conflict → freeze/hang
+    
+    if ((rxPin == 1 || rxPin == 2) && (txPin == 1 || txPin == 2)) {
+        Serial.println("================================================");
+        Serial.println("[GPS] WARNING: Grove GPS pins on ADV+LoRa?");
+        Serial.println("[GPS] If you have Cap LoRa868 module installed:");
+        Serial.println("[GPS]   Expected pins: RX=15, TX=13");
+        Serial.println("[GPS]   Current pins:  RX=1, TX=2 (Grove)");
+        Serial.println("[GPS] This may cause freezes. Change in Settings.");
+        Serial.println("[GPS] Continuing anyway, but stability not guaranteed.");
+        Serial.println("================================================");
+        // Continue init but warn user - don't block GPS entirely
+        // Some users may have Grove GPS on ADV (no LoRa)
+    }
+    
     // Use Serial2 for GPS (UART2)
     Serial2.begin(baud, SERIAL_8N1, rxPin, txPin);
     serial = &Serial2;

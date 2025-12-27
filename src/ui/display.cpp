@@ -753,16 +753,32 @@ void Display::flashSiren(uint8_t cycles) {
     
     // Police siren effect - red/blue alternating flash
     // Uses ESP32-S3 built-in neopixelWrite() - no library needed!
-    // Note: LED brightness depends on display brightness (shared power rail)
-    // Users at 100% brightness get full siren effect
+    // CRITICAL FIX: Scale LED intensity based on display brightness to prevent voltage sag
+    // Cardputer ADV has different power distribution - LED shares rail with display
+    // At 100% brightness + full LED = potential brown-out/freeze
+    
+    uint8_t displayBrightness = Config::personality().brightness; // 0-100
+    
+    // Safety: Disable LED above 85% brightness to prevent freeze on ADV hardware
+    if (displayBrightness > 85) {
+        Serial.println("[DISPLAY] LED disabled at high brightness for stability");
+        return; // Skip LED effect, prevent voltage sag
+    }
+    
+    // Scale LED intensity inversely to display brightness (higher display = dimmer LED)
+    // At 50% brightness: LED at ~75% intensity
+    // At 85% brightness: LED at ~50% intensity
+    uint8_t ledMaxIntensity = map(displayBrightness, 0, 85, 255, 128); // 255→128 range
 
     for (uint8_t i = 0; i < cycles; i++) {
-        // RED flash
-        neopixelWrite(LED_PIN, 255, 0, 0);
+        // RED flash - scaled
+        uint8_t red = map(255, 0, 255, 0, ledMaxIntensity);
+        neopixelWrite(LED_PIN, red, 0, 0);
         delay(40);
 
-        // BLUE flash
-        neopixelWrite(LED_PIN, 0, 0, 255);
+        // BLUE flash - scaled
+        uint8_t blue = map(255, 0, 255, 0, ledMaxIntensity);
+        neopixelWrite(LED_PIN, 0, 0, blue);
         delay(40);
     }
 
@@ -772,6 +788,23 @@ void Display::flashSiren(uint8_t cycles) {
 
 void Display::setLED(uint8_t r, uint8_t g, uint8_t b) {
     // Static LED glow - for ambient effects like riddle mode
+    // CRITICAL FIX: Scale LED output to prevent voltage sag at high display brightness
+    uint8_t displayBrightness = Config::personality().brightness;
+    
+    // Disable LED above 85% brightness
+    if (displayBrightness > 85) {
+        neopixelWrite(LED_PIN, 0, 0, 0);
+        return;
+    }
+    
+    // Scale RGB values based on display brightness
+    if (displayBrightness > 50) {
+        uint8_t scale = map(displayBrightness, 50, 85, 255, 128);
+        r = (r * scale) / 255;
+        g = (g * scale) / 255;
+        b = (b * scale) / 255;
+    }
+    
     neopixelWrite(LED_PIN, r, g, b);
 }
 
